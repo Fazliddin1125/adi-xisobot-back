@@ -38,6 +38,11 @@ export class MongoUserRepository implements UserRepository {
     return doc ? toEntity(doc) : null;
   }
 
+  async findByTelegramId(telegramId: string): Promise<User | null> {
+    const doc = await UserModel.findOne({ telegramId }).lean();
+    return doc ? toEntity(doc) : null;
+  }
+
   async findAll(filter: { departmentId?: string } = {}): Promise<User[]> {
     const query = filter.departmentId ? { departmentId: filter.departmentId } : {};
     const docs = await UserModel.find(query).sort({ fullName: 1 }).lean();

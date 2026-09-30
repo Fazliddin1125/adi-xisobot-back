@@ -5,16 +5,24 @@ interface Update {
   message?: { chat: { id: number; type: string }; from?: { first_name?: string }; text?: string };
 }
 
+/** Telegram chat ID bo'yicha ulangan foydalanuvchining F.I.Sh (ulanmagan bo'lsa null) */
+export type LinkedUserLookup = (chatId: string) => Promise<string | null>;
+
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 /**
- * Botga yozgan har kimga uning Telegram ID raqamini qaytaradi.
- * Xodim botga /start bosadi → ID ni superadminga beradi → superadmin profilga kiritadi.
+ * Botga yozgan har kimga salom beradi va bot nima uchun kerakligini tushuntiradi.
+ * Ulanmagan odamga Telegram ID raqamini ham yuboradi — u shu raqamni superadminga beradi.
  * (Bot foydalanuvchiga xabar yubora olishi uchun ham avval /start bosilishi shart.)
  */
 export class TelegramIdBot {
   private offset = 0;
   private running = false;
 
-  constructor(private readonly api: TelegramApi) {}
+  constructor(
+    private readonly api: TelegramApi,
+    private readonly findLinkedUser: LinkedUserLookup,
+  ) {}
 
   start(): void {
     if (this.running) return;
@@ -41,15 +49,30 @@ export class TelegramIdBot {
     }
   }
 
-  private async reply(chatId: number, name?: string): Promise<void> {
-    const text = [
-      `Assalomu alaykum${name ? `, ${name.replace(/[<>&]/g, '')}` : ''}!`,
-      '',
-      `Sizning Telegram ID raqamingiz: <code>${chatId}</code>`,
-      '',
-      'Shu raqamni ATM tizimi administratoriga yuboring. U kiritilgach, sizga berilgan topshiriqlar haqida shu yerga xabar keladi.',
-    ].join('\n');
-    await this.api.call('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML' }).catch((err) => {
+  private async reply(chatId: number, firstName?: string): Promise<void> {
+    const linkedName = await this.findLinkedUser(String(chatId)).catch(() => null);
+    const name = escapeHtml(linkedName ?? firstName ?? '');
+
+    const text = linkedName
+      ? [
+          `Assalomu alaykum, <b>${name}</b>! 👋`,
+          '',
+          "Bu — ADU ATM bo'limining yordamchi boti. Bu yerda sizga berilgan topshiriqlar va ularning muddatlari haqida xabar olasiz.",
+          '',
+          "✅ Hisobingiz ulangan. Yangi topshiriq berilsa, darhol shu yerga yozaman.",
+        ]
+      : [
+          `Assalomu alaykum${name ? `, <b>${name}</b>` : ''}! 👋`,
+          '',
+          "Bu — ADU ATM bo'limining yordamchi boti. Bu yerda sizga berilgan topshiriqlar va ularning muddatlari haqida xabar olasiz.",
+          '',
+          'Xabarlar kela boshlashi uchun quyidagi Telegram ID raqamingizni administratorga yuboring:',
+          `<code>${chatId}</code>`,
+          '',
+          "(Raqam ustiga bossangiz, nusxa olinadi.)",
+        ];
+
+    await this.api.call('sendMessage', { chat_id: chatId, text: text.join('\n'), parse_mode: 'HTML' }).catch((err) => {
       console.error('Telegram javob xatosi:', (err as Error).message);
     });
   }

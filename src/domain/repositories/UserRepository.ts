@@ -14,6 +14,7 @@ export interface UserRepository {
   findById(id: string): Promise<User | null>;
   findByIds(ids: string[]): Promise<User[]>;
   findByUsername(username: string): Promise<User | null>;
+  findByTelegramId(telegramId: string): Promise<User | null>;
   findAll(filter?: { departmentId?: string }): Promise<User[]>;
   update(id: string, changes: Partial<NewUser>): Promise<User | null>;
   delete(id: string): Promise<void>;

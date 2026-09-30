@@ -54,7 +54,10 @@ export function buildContainer() {
     appealController: new AppealController(appealService),
     statsController: new StatsController(statsService, exportService),
     userController: new UserController(userService, notificationService),
-    telegramIdBot: telegramApi && env.telegram.idBot ? new TelegramIdBot(telegramApi) : null,
+    telegramIdBot:
+      telegramApi && env.telegram.idBot
+        ? new TelegramIdBot(telegramApi, async (chatId) => (await userRepo.findByTelegramId(chatId))?.fullName ?? null)
+        : null,
     taskController: new TaskController(new TaskService(taskRepo, userRepo, notificationService)),
     departmentController: new DepartmentController(new DepartmentService(departmentRepo, userRepo)),
     settingsController: new SettingsController(new SettingsService(settingsRepo)),
