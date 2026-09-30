@@ -16,8 +16,9 @@ export class MongoDepartmentRepository implements DepartmentRepository {
     return doc ? toEntity(doc) : null;
   }
 
+  /** Katta-kichik harfga qaramay qidiradi. MongoDB 'uz' locale'ni qo'llamaydi — lotin yozuvi uchun 'en' yetarli */
   async findByName(name: string): Promise<Department | null> {
-    const doc = await DepartmentModel.findOne({ name }).collation({ locale: 'uz', strength: 2 }).lean();
+    const doc = await DepartmentModel.findOne({ name }).collation({ locale: 'en', strength: 2 }).lean();
     return doc ? toEntity(doc) : null;
   }
 
