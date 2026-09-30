@@ -52,7 +52,7 @@ export const settingsSchema = z.object({
 });
 
 export const createAppealSchema = z.object({
-  title: z.string().trim().min(2, 'Murojaat nomi kamida 2 belgi').max(200),
+  title: z.string().trim().min(2, 'Ish nomi kamida 2 belgi').max(200),
   // Majburiyligi sozlamaga bog'liq — servisda tekshiriladi
   visitorType: z.enum(VISITOR_TYPES).optional(),
   channel: z.enum(CHANNELS).optional(),
@@ -66,7 +66,7 @@ export const createAppealSchema = z.object({
 });
 
 export const updateAppealSchema = z.object({
-  title: z.string().trim().min(2, 'Murojaat nomi kamida 2 belgi').max(200).optional(),
+  title: z.string().trim().min(2, 'Ish nomi kamida 2 belgi').max(200).optional(),
   visitorType: z.enum(VISITOR_TYPES).optional(),
   channel: z.enum(CHANNELS).optional(),
   status: z.enum(STATUSES).optional(),

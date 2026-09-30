@@ -69,11 +69,11 @@ export class AppealService {
   private async getEditable(actor: Actor, id: string): Promise<Appeal> {
     const appeal = await this.appeals.findById(id);
     if (!appeal || (!can.viewAll(actor.role) && appeal.staffId !== actor.id)) {
-      throw AppError.notFound('Murojaat topilmadi');
+      throw AppError.notFound('Ish topilmadi');
     }
     if (!this.canEdit(actor, appeal)) {
       throw AppError.forbidden(
-        appeal.staffId === actor.id ? 'Murojaatni faqat kiritilgan kuni o\'zgartirish mumkin' : 'Boshqa xodimning murojaatini o\'zgartira olmaysiz',
+        appeal.staffId === actor.id ? 'Ishni faqat kiritilgan kuni o\'zgartirish mumkin' : 'Boshqa xodimning ishini o\'zgartira olmaysiz',
       );
     }
     return appeal;

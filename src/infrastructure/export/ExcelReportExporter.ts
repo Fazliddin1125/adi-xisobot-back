@@ -21,15 +21,15 @@ export class ExcelReportExporter implements ReportExporter {
     wb.creator = 'ADU ATM';
     wb.created = new Date();
 
-    const list = wb.addWorksheet('Murojaatlar');
+    const list = wb.addWorksheet('Ishlar');
     list.columns = [
       { header: '№', key: 'n', width: 6 },
       { header: 'Sana va vaqt', key: 'date', width: 18 },
-      { header: 'Murojaat nomi', key: 'title', width: 36 },
+      { header: 'Ish nomi', key: 'title', width: 36 },
       ...(report.fields.visitorTypeEnabled ? [{ header: 'Toifa', key: 'type', width: 10 }] : []),
       ...(report.fields.channelEnabled ? [{ header: 'Murojaat turi', key: 'channel', width: 20 }] : []),
       ...(report.fields.appealStatusEnabled ? [{ header: 'Holat', key: 'status', width: 15 }] : []),
-      { header: 'Qabul qilgan xodim', key: 'staff', width: 28 },
+      { header: 'Bajargan xodim', key: 'staff', width: 28 },
       { header: 'Bo\'lim', key: 'department', width: 24 },
       { header: 'Izoh', key: 'comment', width: 50 },
     ];

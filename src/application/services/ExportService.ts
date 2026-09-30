@@ -38,6 +38,6 @@ export class ExportService {
       staffRows: query.staffId ? perStaff.rows.filter((r) => r.staffId === query.staffId) : perStaff.rows,
     });
     const suffix = query.month ?? `${dayKey(range.from)}_${dayKey(new Date(range.to.getTime() - 1))}`;
-    return { filename: `murojaatlar_${suffix}.xlsx`, buffer };
+    return { filename: `ishlar_${suffix}.xlsx`, buffer };
   }
 }
