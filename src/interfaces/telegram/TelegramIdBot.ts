@@ -51,31 +51,54 @@ export class TelegramIdBot {
     }
   }
 
+  /** Kontakt matnidan Telegram username (masalan "Fazliddinga (@fazliddin_bakhrom)" → "fazliddin_bakhrom") */
+  private get supportUsername(): string | null {
+    return /@([A-Za-z0-9_]{5,32})/.exec(this.supportContact)?.[1] ?? null;
+  }
+
   private async reply(chatId: number, firstName?: string): Promise<void> {
     const linkedName = await this.findLinkedUser(String(chatId)).catch(() => null);
     const name = escapeHtml(linkedName ?? firstName ?? '');
+    const username = this.supportUsername;
+    const intro = "Bu — ADU ATM bo'limining yordamchi boti. Bu yerda sizga berilgan topshiriqlar va ularning muddatlari haqida xabar olasiz.";
 
     const text = linkedName
       ? [
           `Assalomu alaykum, <b>${name}</b>! 👋`,
           '',
-          "Bu — ADU ATM bo'limining yordamchi boti. Bu yerda sizga berilgan topshiriqlar va ularning muddatlari haqida xabar olasiz.",
+          intro,
           '',
-          "✅ Hisobingiz ulangan. Yangi topshiriq berilsa, darhol shu yerga yozaman.",
+          '✅ Hisobingiz ulangan. Yangi topshiriq berilsa, darhol shu yerga yozaman.',
+          username ? `\n💬 Savollar bo'lsa: @${username}` : null,
         ]
       : [
           `Assalomu alaykum${name ? `, <b>${name}</b>` : ''}! 👋`,
           '',
-          "Bu — ADU ATM bo'limining yordamchi boti. Bu yerda sizga berilgan topshiriqlar va ularning muddatlari haqida xabar olasiz.",
+          intro,
           '',
-          `Xabarlar kela boshlashi uchun quyidagi Telegram ID raqamingizni ${escapeHtml(this.supportContact)} yuboring:`,
-          `<code>${chatId}</code>`,
+          `🆔 Sizning Telegram ID raqamingiz: <code>${chatId}</code>`,
+          '<i>(raqam ustiga bossangiz, nusxa olinadi)</i>',
           '',
-          "(Raqam ustiga bossangiz, nusxa olinadi.)",
+          username
+            ? `👤 Xabarlar kela boshlashi uchun shu raqamni ${escapeHtml(this.supportContact.replace(/\s*\(@\w+\)/, ''))} yuboring: @${username}`
+            : `👤 Xabarlar kela boshlashi uchun shu raqamni ${escapeHtml(this.supportContact)} yuboring.`,
         ];
 
-    await this.api.call('sendMessage', { chat_id: chatId, text: text.join('\n'), parse_mode: 'HTML' }).catch((err) => {
-      console.error('Telegram javob xatosi:', (err as Error).message);
-    });
+    // Ulanmagan odamga — kontakt bilan chatni bir bosishda ochadigan tugma
+    const replyMarkup =
+      username && !linkedName
+        ? { inline_keyboard: [[{ text: `✍️ @${username} ga yozish`, url: `https://t.me/${username}` }]] }
+        : undefined;
+
+    await this.api
+      .call('sendMessage', {
+        chat_id: chatId,
+        text: text.filter((l) => l !== null).join('\n'),
+        parse_mode: 'HTML',
+        ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+      })
+      .catch((err) => {
+        console.error('Telegram javob xatosi:', (err as Error).message);
+      });
   }
 }
