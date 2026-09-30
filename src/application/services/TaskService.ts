@@ -1,6 +1,7 @@
 import { AppError } from '../../domain/errors/AppError.js';
 import {
   ASSIGNEE_TRANSITIONS,
+  isReturn,
   TASK_STATUSES,
   type Task,
   type TaskChanges,
@@ -96,12 +97,24 @@ export class TaskService {
     return (await this.toViews(actor, [updated!]))[0];
   }
 
-  async changeStatus(actor: Actor, id: string, status: TaskStatus): Promise<TaskView> {
+  /**
+   * Bosqichni o'zgartiradi. Bajarilgan topshiriqni qaytarishda izoh majburiy:
+   * izoh topshiriqqa yoziladi va ijrochilarga bot orqali xabar boradi.
+   */
+  async changeStatus(actor: Actor, id: string, status: TaskStatus, comment?: string): Promise<TaskView> {
     const task = await this.getVisible(actor, id);
     if (!this.allowedStatuses(actor, task).includes(status)) {
       throw AppError.forbidden('Topshiriqni bu bosqichga o\'tkaza olmaysiz');
     }
+    const returning = isReturn(task.status, status);
+    const note = comment?.trim();
+    if (returning && (!note || note.length < 3)) {
+      throw AppError.badRequest('Qaytarish sababini izohda yozing');
+    }
+
     const updated = await this.tasks.setStatus(id, status, status === 'bajarildi' ? new Date() : null);
+    if (note) await this.tasks.addComment(id, actor.id, returning ? `Qaytarildi: ${note}` : note);
+    if (returning) void this.notifications.taskReturned(updated!, actor.id, note!);
     return (await this.toViews(actor, [updated!]))[0];
   }
 
@@ -133,9 +146,12 @@ export class TaskService {
   }
 
   allowedStatuses(actor: Actor, task: Task): TaskStatus[] {
-    if (this.canManage(actor, task)) return TASK_STATUSES.filter((s) => s !== task.status);
-    if (task.assigneeIds.includes(actor.id)) return ASSIGNEE_TRANSITIONS[task.status];
-    return [];
+    const allowed = new Set<TaskStatus>();
+    if (this.canManage(actor, task)) TASK_STATUSES.filter((s) => s !== task.status).forEach((s) => allowed.add(s));
+    if (task.assigneeIds.includes(actor.id)) ASSIGNEE_TRANSITIONS[task.status].forEach((s) => allowed.add(s));
+    // Barcha rahbarlar (bo'lim boshlig'i ham) bajarilganni izoh bilan qaytara oladi
+    if (task.status === 'bajarildi' && can.returnTask(actor.role)) allowed.add('jarayonda');
+    return TASK_STATUSES.filter((s) => allowed.has(s));
   }
 
   /** Ijrochilar mavjudligini tekshiradi. Rahbarlar istalgan bo'lim xodimiga topshiriq bera oladi */

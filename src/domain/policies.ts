@@ -11,5 +11,7 @@ export const can = {
   manageAnyTask: (role: Role) => role === 'superadmin' || role === 'markaz_boshligi',
   /** Istalgan kunning istalgan murojaatini tahrirlash */
   editAnyAppeal: (role: Role) => role === 'superadmin',
+  /** Bajarilgan topshiriqni izoh bilan orqaga qaytarish */
+  returnTask: (role: Role) => MANAGER_ROLES.includes(role),
   administer: (role: Role) => role === 'superadmin',
 };

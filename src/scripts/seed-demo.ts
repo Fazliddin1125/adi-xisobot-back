@@ -70,7 +70,7 @@ await TaskModel.insertMany([
   { title: 'LMS test rejimidagi kamchiliklar ro\'yxatini tayyorlash', description: 'Murojaatlardan kelgan kamchiliklarni jamlab, dasturchilarga yuborish.', deadline: day(3), status: 'jarayonda', visibility: 'public', assigneeIds: [users.vali, users.dilnoza], creatorId: users.bolim1 },
   { title: 'HEMIS parol tiklash yo\'riqnomasi', description: 'Talabalar uchun qisqa video va PDF yo\'riqnoma.', deadline: day(7), status: 'yangi', visibility: 'public', assigneeIds: [users.dilnoza], creatorId: users.bolim1 },
   { title: 'Oylik hisobotni tayyorlash', deadline: day(-1), status: 'yangi', visibility: 'private', assigneeIds: [users.jasur], creatorId: users.markaz },
-  { title: 'Kompyuter sinfini tekshirish', deadline: day(1), status: 'tekshiruvda', visibility: 'public', assigneeIds: [users.vali], creatorId: users.markaz },
+  { title: 'Kompyuter sinfini tekshirish', deadline: day(1), status: 'bajarildi', completedAt: day(0), visibility: 'public', assigneeIds: [users.vali], creatorId: users.markaz },
   { title: 'Wi-Fi nuqtalarini xatlovdan o\'tkazish', deadline: day(-5), status: 'bajarildi', completedAt: day(-6), visibility: 'public', assigneeIds: [users.jasur], creatorId: users.markaz },
 ]);
 

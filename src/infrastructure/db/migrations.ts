@@ -1,4 +1,5 @@
 import { AppealModel } from './models/AppealModel.js';
+import { TaskModel } from './models/TaskModel.js';
 import { UserModel } from './models/UserModel.js';
 
 /** Eski versiyadagi ma'lumotlarni yangi tuzilmaga o'tkazish (har ishga tushganda, takroriy xavfsiz) */
@@ -13,4 +14,8 @@ export async function runMigrations(): Promise<void> {
   // "Murojaatchi ismi" → "Murojaat nomi"
   const r = await AppealModel.collection.updateMany({ visitorName: { $exists: true } }, { $rename: { visitorName: 'title' } });
   if (r.modifiedCount) console.log(`Migratsiya: ${r.modifiedCount} murojaatda visitorName → title`);
+
+  // "Tekshiruvda" bosqichi olib tashlandi: tekshiruvga yuborilganlar bajarilgan hisoblanadi
+  const t = await TaskModel.collection.updateMany({ status: 'tekshiruvda' }, [{ $set: { status: 'bajarildi', completedAt: '$updatedAt' } }]);
+  if (t.modifiedCount) console.log(`Migratsiya: ${t.modifiedCount} ta "tekshiruvda" topshiriq → bajarildi`);
 }

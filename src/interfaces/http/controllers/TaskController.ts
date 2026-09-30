@@ -31,8 +31,8 @@ export class TaskController {
   };
 
   changeStatus = async (req: Request, res: Response) => {
-    const { status } = body(req, taskStatusSchema);
-    res.json(await this.tasks.changeStatus(actorOf(req), params(req, idParamSchema).id, status));
+    const { status, comment } = body(req, taskStatusSchema);
+    res.json(await this.tasks.changeStatus(actorOf(req), params(req, idParamSchema).id, status, comment));
   };
 
   remove = async (req: Request, res: Response) => {

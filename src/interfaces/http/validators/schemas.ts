@@ -112,7 +112,11 @@ export const updateTaskSchema = z.object({
   assigneeIds: z.array(objectId).min(1, 'Kamida bitta ijrochi tanlang').max(20).optional(),
 });
 
-export const taskStatusSchema = z.object({ status: z.enum(TASK_STATUSES) });
+export const taskStatusSchema = z.object({
+  status: z.enum(TASK_STATUSES),
+  /** Bajarilganni qaytarishda majburiy (servisda tekshiriladi) */
+  comment: z.string().trim().max(2000).optional(),
+});
 export const taskCommentSchema = z.object({ text: z.string().trim().min(1, 'Izoh bo\'sh').max(2000) });
 export const taskListQuerySchema = z.object({
   scope: z.enum(['all', 'mine']).optional(),

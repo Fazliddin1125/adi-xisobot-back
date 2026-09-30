@@ -22,6 +22,8 @@ export class TelegramIdBot {
   constructor(
     private readonly api: TelegramApi,
     private readonly findLinkedUser: LinkedUserLookup,
+    /** Jo'nalish kelishigida: "Fazliddinga (@fazliddin_bakhrom)" */
+    private readonly supportContact: string,
   ) {}
 
   start(): void {
@@ -66,7 +68,7 @@ export class TelegramIdBot {
           '',
           "Bu — ADU ATM bo'limining yordamchi boti. Bu yerda sizga berilgan topshiriqlar va ularning muddatlari haqida xabar olasiz.",
           '',
-          'Xabarlar kela boshlashi uchun quyidagi Telegram ID raqamingizni administratorga yuboring:',
+          `Xabarlar kela boshlashi uchun quyidagi Telegram ID raqamingizni ${escapeHtml(this.supportContact)} yuboring:`,
           `<code>${chatId}</code>`,
           '',
           "(Raqam ustiga bossangiz, nusxa olinadi.)",

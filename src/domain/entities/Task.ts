@@ -1,4 +1,4 @@
-export const TASK_STATUSES = ['yangi', 'jarayonda', 'tekshiruvda', 'bajarildi'] as const;
+export const TASK_STATUSES = ['yangi', 'jarayonda', 'bajarildi'] as const;
 export const TASK_VISIBILITY = ['public', 'private'] as const;
 
 export type TaskStatus = (typeof TASK_STATUSES)[number];
@@ -33,7 +33,11 @@ export interface TaskComment {
 /** Ijrochi o'zi o'tkaza oladigan bosqichlar */
 export const ASSIGNEE_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   yangi: ['jarayonda'],
-  jarayonda: ['tekshiruvda'],
-  tekshiruvda: ['jarayonda'],
+  jarayonda: ['bajarildi'],
   bajarildi: [],
 };
+
+/** Bajarilgan topshiriqni orqaga qaytarish (izoh majburiy, ijrochiga xabar boradi) */
+export function isReturn(from: TaskStatus, to: TaskStatus): boolean {
+  return from === 'bajarildi' && to !== 'bajarildi';
+}

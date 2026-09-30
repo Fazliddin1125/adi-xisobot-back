@@ -31,10 +31,41 @@ export class NotificationService {
       task.description ? escapeHtml(truncate(task.description, 600)) : null,
       '',
       `🗓 Muddat: <b>${dayKey(task.deadline).split('-').reverse().join('.')}</b>`,
-      `👤 Bergan: ${escapeHtml(creator?.fullName ?? '—')}`,
+      `👤 Muallif: ${escapeHtml(creator?.fullName ?? '—')}`,
       this.appUrl ? `\n<a href="${this.appUrl}/topshiriqlar">Saytda ochish</a>` : null,
     ].filter((l) => l !== null);
     const html = lines.join('\n');
+
+    await Promise.all(
+      recipients
+        .filter((u) => u.telegramId)
+        .map((u) =>
+          this.sender.send(u.telegramId!, html).catch((err) => {
+            console.error(`Telegram xabari yuborilmadi (${u.username}):`, (err as Error).message);
+          }),
+        ),
+    );
+  }
+
+  /** Bajarilgan topshiriq izoh bilan qaytarilganda — ijrochilarga (qaytargandan tashqari) */
+  async taskReturned(task: Task, actorId: string, comment: string): Promise<void> {
+    if (!this.sender.enabled) return;
+    const ids = task.assigneeIds.filter((id) => id !== actorId);
+    if (!ids.length) return;
+
+    const [recipients, actor] = await Promise.all([this.users.findByIds(ids), this.users.findById(actorId)]);
+    const html = [
+      '↩️ <b>Topshiriq qayta ishlashga qaytarildi</b>',
+      '',
+      `<b>${escapeHtml(task.title)}</b>`,
+      '',
+      `💬 Izoh: <i>${escapeHtml(truncate(comment, 800))}</i>`,
+      `👤 Qaytargan: ${escapeHtml(actor?.fullName ?? '—')}`,
+      `🗓 Muddat: <b>${dayKey(task.deadline).split('-').reverse().join('.')}</b>`,
+      this.appUrl ? `\n<a href="${this.appUrl}/topshiriqlar">Saytda ochish</a>` : null,
+    ]
+      .filter((l) => l !== null)
+      .join('\n');
 
     await Promise.all(
       recipients

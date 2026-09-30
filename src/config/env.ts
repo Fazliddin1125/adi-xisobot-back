@@ -22,6 +22,8 @@ export const env = {
     apiBase: process.env.TELEGRAM_API_BASE || 'https://api.telegram.org',
     /** Bot /start ga ID bilan javob bersinmi (bitta server nusxasida yoqing) */
     idBot: process.env.TELEGRAM_ID_BOT !== 'false',
+    /** /start javobida kimga murojaat qilish (jo'nalish kelishigida), masalan "Fazliddinga (@fazliddin_bakhrom)" */
+    supportContact: process.env.TELEGRAM_SUPPORT_CONTACT || 'ATM tizimi administratoriga',
   },
   admin: {
     username: process.env.ADMIN_USERNAME ?? 'admin',
