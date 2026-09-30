@@ -138,16 +138,11 @@ export class TaskService {
     return [];
   }
 
-  /** Bo'lim boshlig'i faqat o'z bo'limi xodimlariga topshiriq bera oladi */
-  private async assertAssignees(actor: Actor, assigneeIds: string[]) {
+  /** Ijrochilar mavjudligini tekshiradi. Rahbarlar istalgan bo'lim xodimiga topshiriq bera oladi */
+  private async assertAssignees(_actor: Actor, assigneeIds: string[]) {
     const unique = [...new Set(assigneeIds)];
     const users = await this.users.findByIds(unique);
     if (users.length !== unique.length) throw AppError.badRequest('Ijrochilardan biri topilmadi');
-    if (actor.role === 'bolim_boshligi') {
-      if (!actor.departmentId) throw AppError.forbidden('Sizga bo\'lim biriktirilmagan, topshiriq bera olmaysiz');
-      const outsider = users.find((u) => u.departmentId !== actor.departmentId);
-      if (outsider) throw AppError.forbidden(`${outsider.fullName} sizning bo'limingizda emas`);
-    }
   }
 
   private async getVisible(actor: Actor, id: string): Promise<Task> {
