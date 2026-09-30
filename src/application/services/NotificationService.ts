@@ -1,0 +1,62 @@
+import type { Task } from '../../domain/entities/Task.js';
+import type { UserRepository } from '../../domain/repositories/UserRepository.js';
+import { AppError } from '../../domain/errors/AppError.js';
+import { dayKey } from '../../shared/time.js';
+import type { MessageSender } from '../ports/MessageSender.js';
+
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const truncate = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
+
+export class NotificationService {
+  constructor(
+    private readonly sender: MessageSender,
+    private readonly users: UserRepository,
+    private readonly appUrl?: string,
+  ) {}
+
+  /**
+   * Yangi ijrochilarga "sizga topshiriq berildi" xabari.
+   * Xatolik topshiriq saqlanishiga ta'sir qilmaydi — faqat logga yoziladi.
+   */
+  async taskAssigned(task: Task, recipientIds: string[]): Promise<void> {
+    if (!this.sender.enabled) return;
+    const ids = recipientIds.filter((id) => id !== task.creatorId);
+    if (!ids.length) return;
+
+    const [recipients, creator] = await Promise.all([this.users.findByIds(ids), this.users.findById(task.creatorId)]);
+    const lines = [
+      '📌 <b>Sizga yangi topshiriq berildi</b>',
+      '',
+      `<b>${escapeHtml(task.title)}</b>`,
+      task.description ? escapeHtml(truncate(task.description, 600)) : null,
+      '',
+      `🗓 Muddat: <b>${dayKey(task.deadline).split('-').reverse().join('.')}</b>`,
+      `👤 Bergan: ${escapeHtml(creator?.fullName ?? '—')}`,
+      this.appUrl ? `\n<a href="${this.appUrl}/topshiriqlar">Saytda ochish</a>` : null,
+    ].filter((l) => l !== null);
+    const html = lines.join('\n');
+
+    await Promise.all(
+      recipients
+        .filter((u) => u.telegramId)
+        .map((u) =>
+          this.sender.send(u.telegramId!, html).catch((err) => {
+            console.error(`Telegram xabari yuborilmadi (${u.username}):`, (err as Error).message);
+          }),
+        ),
+    );
+  }
+
+  /** Superadmin: ID to'g'riligini tekshirish uchun sinov xabari */
+  async sendTest(userId: string): Promise<void> {
+    if (!this.sender.enabled) throw AppError.badRequest('Telegram bot sozlanmagan (TELEGRAM_BOT_TOKEN yo\'q)');
+    const user = await this.users.findById(userId);
+    if (!user) throw AppError.notFound('Foydalanuvchi topilmadi');
+    if (!user.telegramId) throw AppError.badRequest('Bu foydalanuvchiga Telegram ID kiritilmagan');
+    try {
+      await this.sender.send(user.telegramId, `✅ Salom, ${escapeHtml(user.fullName)}! ATM tizimi bildirishnomalari shu yerga keladi.`);
+    } catch (err) {
+      throw AppError.badRequest(`Xabar yuborilmadi: ${(err as Error).message}. Foydalanuvchi botga /start bosganmi va ID to'g'rimi?`);
+    }
+  }
+}
