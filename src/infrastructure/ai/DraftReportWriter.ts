@@ -2,11 +2,14 @@ import type { ReportContent, ReportItem } from '../../domain/entities/QuarterlyR
 import type { ReportWriter, ReportWriterInput, WriterEntry } from '../../application/ports/ReportWriter.js';
 import { ROMAN } from '../../shared/time.js';
 
-/** Bir xil matnli yozuvlarni bitta bandga birlashtiradi (katta-kichik harf va bo'sh joyga qaramay) */
+/**
+ * Faqat haqiqiy dublikatlarni birlashtiradi: bir kunda bir xil matn bilan kiritilgan yozuvlar.
+ * Turli kunlarda qilingan bir xil ish — alohida ish, alohida band bo'lib qoladi.
+ */
 function dedupe(entries: WriterEntry[]): ReportItem[] {
   const byText = new Map<string, ReportItem>();
   for (const e of entries) {
-    const key = e.text.toLowerCase().replace(/\s+/g, ' ').trim();
+    const key = `${e.date}|${e.text.toLowerCase().replace(/\s+/g, ' ').trim()}`;
     const item = byText.get(key);
     if (item) item.sources.push(e.ref);
     else byText.set(key, { text: e.text.trim(), sources: [e.ref] });
@@ -15,7 +18,7 @@ function dedupe(entries: WriterEntry[]): ReportItem[] {
 }
 
 /**
- * AI ulanmagan paytdagi qoralama: yozuvlar tahrirsiz, faqat takrorlari birlashtiriladi.
+ * AI ulanmagan paytdagi qoralama: yozuvlar tahrirsiz, faqat bir kundagi dublikatlar birlashtiriladi.
  * Rahbar ko'rib chiqish sahifasida matnni o'zi tahrirlaydi.
  */
 export class DraftReportWriter implements ReportWriter {

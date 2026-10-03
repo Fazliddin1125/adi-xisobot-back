@@ -28,7 +28,9 @@ const OutputSchema = z.object({
  */
 const SYSTEM = `You write the quarterly activity report ("choraklik hisobot") of a department of the Digital Education Technologies Center (RTT markazi) at Andijan State University, Uzbekistan.
 
-You receive the department's raw work-log entries for one quarter, grouped by month, plus tasks completed during the quarter. Staff wrote the entries quickly: in colloquial or dialect Uzbek, with typos, mixed Latin/Cyrillic, first person ("ulab berdim", "ornatdik"), and many near-duplicates. Each entry has a reference code: "I…" for work-log entries, "T…" for completed tasks.
+You receive the department's raw work-log entries for one quarter, grouped by month, plus tasks completed during the quarter. Staff wrote the entries quickly: in colloquial or dialect Uzbek, with typos, mixed Latin/Cyrillic, and first person ("ulab berdim", "ornatdik"). Each entry has a reference code: "I…" for work-log entries, "T…" for completed tasks.
+
+The report must show the real volume of work. The same kind of job (for example setting up a camera, or restoring someone's internet) is often done many times on different days — each of those is a separate piece of work and must stay a separate item.
 
 Turn them into the official report text.
 
@@ -40,8 +42,9 @@ Language and style:
 
 Content rules — the report is an official document, so accuracy matters more than fluency:
 - Use ONLY facts present in the entries. Never invent numbers, rooms, buildings, people, equipment, or outcomes. If an entry is vague, keep it vague.
-- Merge entries that describe the same kind of work into one item and cite every merged ref. When merging, you may state a count only by counting the merged entries (e.g. five separate "internet ulab berildi" entries → "5 nafar xodimning internet ulanishi ta’minlandi").
-- Recurring routine work (the same check repeated many times in a month) becomes one item for that month.
+- One entry becomes one item. Never merge entries from different days into one item, even when they describe the same kind of work: the reader must see that the job was done repeatedly.
+- Merge only true duplicates — entries with the same date and the same meaning (one job entered twice by mistake); cite all of their refs.
+- When several items describe similar work, make each one distinct using the concrete details from its own entry: the place (building, floor, room, gate), the equipment, the unit or person served, the cause or the result. If an entry has no such detail, start the item with its date ("12-avgust kuni …") to tell it apart. Vary the sentence structure and verbs so the list does not read as one sentence copied many times — but never add a detail that is not in the entry.
 - Skip entries with no work content (e.g. only a person's name, "test", empty phrases). Do not cite skipped entries.
 - Keep a person's name only when the entry is clearly about that person's workplace and the name is needed to identify it; otherwise refer to the room, building, or unit.
 - Order items within a month from most to least significant.
@@ -54,7 +57,9 @@ Style example — a fragment of this department's previous report. Use it ONLY f
 """
 Umumiy ma’lumot: 2026-yilning II-choragi davomida bo‘lim faoliyati tasdiqlangan yillik va operativ ish rejalari asosida tashkil etildi. Hisobot davrida universitetning barcha bo‘lim va tarkibiy tuzilmalari uchun uzluksiz internet xizmati ta’minlandi, auditoriyalardagi kameralar uzluksiz ishlashi nazorat qilindi.
 Bandlar:
-– Switch tarmoq qurilmalari doimiy tekshirildi va aniqlangan kamchiliklar bartaraf etildi.
+– Switch tarmoq qurilmalari tekshirildi va aniqlangan kamchiliklar bartaraf etildi.
+– 13-may kuni asosiy darvozaning kirish qismiga kamera o‘rnatish uchun kabel tortildi.
+– Fizika-matematika fakulteti binosining kirish qismiga kamera o‘rnatish maqsadida kabel tortildi.
 – Registrator ofisida nosoz hub qurilmasi o‘rniga boshqariladigan TP-Link SG3428 switch o‘rnatildi.
 – 1800 o‘rinli binodagi biologiya-kimyo fakulteti tyutorlar xonasiga 15 metr tarmoq kabeli tortildi va internetga ulandi.
 Xulosa: 2026-yil II-chorak davomida bo‘lim tomonidan universitetning texnik infratuzilmasi barqaror ishlashi ta’minlandi.
@@ -95,7 +100,8 @@ export class ClaudeReportWriter implements ReportWriter {
     try {
       const stream = this.client.beta.messages.stream({
         model: this.name,
-        max_tokens: 32000,
+        // Har bir yozuv alohida band bo'ladi — katta bo'limlarda javob uzun
+        max_tokens: 64000,
         // Rad etilsa — server o'zi mos modelda qayta bajaradi
         betas: ['server-side-fallback-2026-07-01'],
         fallbacks: 'default',
