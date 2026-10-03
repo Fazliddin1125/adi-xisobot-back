@@ -24,6 +24,7 @@ import { MongoDepartmentRepository } from './infrastructure/repositories/MongoDe
 import { MongoSettingsRepository } from './infrastructure/repositories/MongoSettingsRepository.js';
 import { BcryptPasswordHasher } from './infrastructure/security/BcryptPasswordHasher.js';
 import { JwtTokenService } from './infrastructure/security/JwtTokenService.js';
+import { MemoryLoginThrottle } from './infrastructure/security/MemoryLoginThrottle.js';
 import { ExcelReportExporter } from './infrastructure/export/ExcelReportExporter.js';
 import { AuthController } from './interfaces/http/controllers/AuthController.js';
 import { AppealController } from './interfaces/http/controllers/AppealController.js';
@@ -57,7 +58,7 @@ export function buildContainer() {
     settingsRepo,
   );
 
-  const authService = new AuthService(userRepo, hasher, tokens);
+  const authService = new AuthService(userRepo, hasher, tokens, new MemoryLoginThrottle());
   const userService = new UserService(userRepo, appealRepo, taskRepo, departmentRepo, hasher);
   const appealService = new AppealService(appealRepo, userRepo, settingsRepo);
   const statsService = new StatsService(appealRepo, userRepo, departmentRepo);

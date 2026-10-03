@@ -63,7 +63,8 @@ export class UserService {
       if (existing && existing.id !== id) throw AppError.conflict('Bu login band');
       changes.username = username;
     }
-    if (input.password) changes.passwordHash = await this.hasher.hash(input.password);
+    // Parol alohida saqlanadi: tokenVersion oshadi va xodimning barcha sessiyalari yopiladi
+    if (input.password) await this.users.setPassword(id, await this.hasher.hash(input.password));
     if (input.departmentId !== undefined) {
       await this.assertDepartment(input.departmentId);
       changes.departmentId = input.departmentId || null;

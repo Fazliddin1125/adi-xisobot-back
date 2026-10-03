@@ -21,4 +21,7 @@ export class AppError extends Error {
   static conflict(message: string) {
     return new AppError(409, message);
   }
+  static tooManyRequests(message: string) {
+    return new AppError(429, message);
+  }
 }

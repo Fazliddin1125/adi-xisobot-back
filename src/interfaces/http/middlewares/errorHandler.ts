@@ -10,6 +10,10 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     res.status(err.status).json({ message: err.message });
     return;
   }
+  if (typeof err === 'object' && err && 'type' in err && err.type === 'entity.too.large') {
+    res.status(413).json({ message: 'So‘rov hajmi juda katta' });
+    return;
+  }
   if (err instanceof SyntaxError && 'body' in err) {
     res.status(400).json({ message: 'JSON formati noto\'g\'ri' });
     return;

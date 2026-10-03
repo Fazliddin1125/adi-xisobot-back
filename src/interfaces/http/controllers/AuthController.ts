@@ -9,7 +9,7 @@ export class AuthController {
 
   login = async (req: Request, res: Response) => {
     const { username, password } = body(req, loginSchema);
-    res.json(await this.auth.login(username, password));
+    res.json(await this.auth.login(username, password, req.ip ?? 'unknown'));
   };
 
   me = async (req: Request, res: Response) => {
@@ -18,7 +18,6 @@ export class AuthController {
 
   changePassword = async (req: Request, res: Response) => {
     const { currentPassword, newPassword } = body(req, changePasswordSchema);
-    await this.auth.changePassword(actorOf(req).id, currentPassword, newPassword);
-    res.status(204).end();
+    res.json(await this.auth.changePassword(actorOf(req).id, currentPassword, newPassword, req.ip ?? 'unknown'));
   };
 }

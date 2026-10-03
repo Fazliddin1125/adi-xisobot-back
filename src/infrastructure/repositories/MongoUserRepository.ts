@@ -9,6 +9,7 @@ function toEntity(doc: UserDoc): User {
     fullName: doc.fullName,
     username: doc.username,
     passwordHash: doc.passwordHash,
+    tokenVersion: doc.tokenVersion ?? 0,
     role: doc.role,
     departmentId: doc.departmentId ? String(doc.departmentId) : undefined,
     telegramId: doc.telegramId ?? undefined,
@@ -52,6 +53,12 @@ export class MongoUserRepository implements UserRepository {
   async update(id: string, changes: Partial<NewUser>): Promise<User | null> {
     if (!isValidObjectId(id)) return null;
     const doc = await UserModel.findByIdAndUpdate(id, changes, { new: true, runValidators: true }).lean();
+    return doc ? toEntity(doc) : null;
+  }
+
+  async setPassword(id: string, passwordHash: string): Promise<User | null> {
+    if (!isValidObjectId(id)) return null;
+    const doc = await UserModel.findByIdAndUpdate(id, { passwordHash, $inc: { tokenVersion: 1 } }, { new: true }).lean();
     return doc ? toEntity(doc) : null;
   }
 

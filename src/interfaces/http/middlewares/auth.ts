@@ -22,6 +22,10 @@ export function requireAuth(tokens: TokenService, users: UserRepository) {
     // Rol/bo'lim o'zgargan yoki xodim o'chirilgan bo'lsa, bazadagi holat amal qiladi
     const user = await users.findById(payload.sub);
     if (!user) throw AppError.unauthorized('Foydalanuvchi topilmadi');
+    // Parol o'zgargandan keyin eski tokenlar ishlamaydi
+    if (payload.ver !== user.tokenVersion) {
+      throw AppError.unauthorized('Parol o‘zgartirilgan, qayta kiring');
+    }
     req.actor = { id: user.id, role: user.role, departmentId: user.departmentId };
     next();
   };

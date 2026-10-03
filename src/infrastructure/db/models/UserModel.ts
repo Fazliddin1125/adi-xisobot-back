@@ -6,6 +6,7 @@ const userSchema = new Schema(
     fullName: { type: String, required: true, trim: true },
     username: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
+    tokenVersion: { type: Number, default: 0 },
     role: { type: String, enum: ROLES, default: 'xodim', required: true },
     departmentId: { type: Types.ObjectId, ref: 'Department', default: null },
     telegramId: { type: String, default: null, trim: true },

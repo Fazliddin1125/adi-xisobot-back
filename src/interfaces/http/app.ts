@@ -6,11 +6,18 @@ import { MANAGER_ROLES } from '../../domain/policies.js';
 import { requireAuth, requireRole } from './middlewares/auth.js';
 import { errorHandler, notFound } from './middlewares/errorHandler.js';
 
-export function createApp(c: Container, corsOrigin: string) {
+export function createApp(c: Container, corsOrigin?: string) {
   const app = express();
+  // API web (nginx) konteyneri orqasida: haqiqiy IP X-Forwarded-For'dan olinadi (login blokirovkasi uchun)
+  app.set('trust proxy', 1);
+  app.disable('x-powered-by');
   app.use(helmet());
-  app.use(cors({ origin: corsOrigin === '*' ? true : corsOrigin.split(',') }));
-  app.use(express.json({ limit: '100kb' }));
+  // Sayt va API bitta manzilda (nginx /api) — CORS faqat alohida domen kerak bo'lsa yoqiladi
+  if (corsOrigin) app.use(cors({ origin: corsOrigin.split(',').map((o) => o.trim()) }));
+  // Choraklik hisobot tahriri katta bo'lishi mumkin (yuzlab bandlar); qolgan so'rovlar kichik
+  const largeJson = express.json({ limit: '2mb' });
+  const smallJson = express.json({ limit: '100kb' });
+  app.use((req, res, next) => (req.path.startsWith('/api/reports/quarterly') ? largeJson : smallJson)(req, res, next));
 
   const api = Router();
   const auth = requireAuth(c.tokens, c.userRepo);

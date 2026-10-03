@@ -17,6 +17,8 @@ export interface UserRepository {
   findByTelegramId(telegramId: string): Promise<User | null>;
   findAll(filter?: { departmentId?: string }): Promise<User[]>;
   update(id: string, changes: Partial<NewUser>): Promise<User | null>;
+  /** Parol almashganda: yangi hash + tokenVersion'ni oshirish (eski sessiyalar bekor) */
+  setPassword(id: string, passwordHash: string): Promise<User | null>;
   delete(id: string): Promise<void>;
   countByRole(role: Role): Promise<number>;
   countByDepartment(departmentId: string): Promise<number>;

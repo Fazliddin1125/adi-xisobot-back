@@ -6,6 +6,8 @@ export interface User {
   fullName: string;
   username: string;
   passwordHash: string;
+  /** Sessiyalar versiyasi: parol o'zgarganda oshadi va barcha eski tokenlar yaroqsiz bo'ladi */
+  tokenVersion: number;
   role: Role;
   departmentId?: string;
   /** Telegram chat ID — topshiriq bildirishnomalari uchun */
@@ -13,8 +15,8 @@ export interface User {
   createdAt: Date;
 }
 
-export type PublicUser = Omit<User, 'passwordHash'>;
+export type PublicUser = Omit<User, 'passwordHash' | 'tokenVersion'>;
 
-export function toPublicUser({ passwordHash: _omit, ...rest }: User): PublicUser {
+export function toPublicUser({ passwordHash: _hash, tokenVersion: _version, ...rest }: User): PublicUser {
   return rest;
 }

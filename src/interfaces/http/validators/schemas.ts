@@ -3,7 +3,8 @@ import { CHANNELS, STATUSES, VISITOR_TYPES } from '../../../domain/entities/Appe
 import { ROLES } from '../../../domain/entities/User.js';
 import { TASK_STATUSES, TASK_VISIBILITY } from '../../../domain/entities/Task.js';
 
-const password = z.string().min(6, 'Parol kamida 6 belgidan iborat bo\'lsin').max(100);
+// Yangi parollar uchun. Kirishda (login) eski qisqa parollar ham qabul qilinadi
+const password = z.string().min(8, 'Parol kamida 8 belgidan iborat bo\'lsin').max(100, 'Parol juda uzun');
 const username = z
   .string()
   .trim()
@@ -21,9 +22,12 @@ const telegramId = z
   .or(z.literal('').transform(() => null));
 const objectId = z.string().regex(/^[a-f0-9]{24}$/i, 'Noto\'g\'ri ID');
 
-export const loginSchema = z.object({ username: z.string().trim().min(1), password: z.string().min(1) });
+export const loginSchema = z.object({
+  username: z.string().trim().min(1, 'Loginni kiriting').max(64),
+  password: z.string().min(1, 'Parolni kiriting').max(200),
+});
 
-export const changePasswordSchema = z.object({ currentPassword: z.string().min(1), newPassword: password });
+export const changePasswordSchema = z.object({ currentPassword: z.string().min(1).max(200), newPassword: password });
 
 export const createUserSchema = z.object({
   fullName,
@@ -135,7 +139,7 @@ const quarter = z.coerce.number().int().min(1, 'Chorak 1–4 bo‘lishi kerak').
 
 export const quarterlyQuerySchema = z.object({ departmentId: objectId, year, quarter });
 
-const reportItem = z.object({ text: z.string().trim().min(1).max(3000), sources: z.array(z.string().max(10)).max(500) });
+const reportItem = z.object({ text: z.string().trim().min(1).max(3000), sources: z.array(z.string().max(10)).max(1000) });
 export const quarterlyUpdateSchema = z.object({
   header: z
     .object({
@@ -150,8 +154,8 @@ export const quarterlyUpdateSchema = z.object({
   content: z
     .object({
       summary: z.string().trim().max(5000),
-      months: z.array(z.object({ month: z.number().int().min(1).max(12), name: z.string().max(30), items: z.array(reportItem).max(200) })).max(3),
-      extra: z.array(reportItem).max(200),
+      months: z.array(z.object({ month: z.number().int().min(1).max(12), name: z.string().max(30), items: z.array(reportItem).max(1000) })).max(3),
+      extra: z.array(reportItem).max(1000),
       conclusion: z.array(z.string().trim().min(1).max(5000)).max(10),
     })
     .optional(),

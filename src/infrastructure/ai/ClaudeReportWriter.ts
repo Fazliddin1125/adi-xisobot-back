@@ -74,11 +74,15 @@ export class ClaudeReportWriter implements ReportWriter {
   readonly usesAi = true;
   private readonly client: Anthropic;
 
+  /** Haiku 4.5 boshqa so'rov shaklini talab qiladi (effort va fallbacks qabul qilmaydi) */
+  private readonly isHaiku: boolean;
+
   constructor(
     apiKey: string,
     readonly name: string,
   ) {
     this.client = new Anthropic({ apiKey, timeout: 10 * 60 * 1000 });
+    this.isHaiku = name.startsWith('claude-haiku');
   }
 
   async write(input: ReportWriterInput): Promise<ReportContent> {
@@ -98,17 +102,28 @@ export class ClaudeReportWriter implements ReportWriter {
 
     let message;
     try {
-      const stream = this.client.beta.messages.stream({
+      const format = betaZodOutputFormat(OutputSchema);
+      const common = {
         model: this.name,
-        // Har bir yozuv alohida band bo'ladi — katta bo'limlarda javob uzun
+        // Har bir yozuv alohida band bo'ladi — katta bo'limlarda javob uzun (Haiku 4.5 chegarasi ham 64K)
         max_tokens: 64000,
-        // Rad etilsa — server o'zi mos modelda qayta bajaradi
-        betas: ['server-side-fallback-2026-07-01'],
-        fallbacks: 'default',
-        output_config: { effort: 'high', format: betaZodOutputFormat(OutputSchema) },
-        system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
-        messages: [{ role: 'user', content: prompt }],
-      });
+        system: [{ type: 'text' as const, text: SYSTEM, cache_control: { type: 'ephemeral' as const } }],
+        messages: [{ role: 'user' as const, content: prompt }],
+      };
+      const stream = this.isHaiku
+        ? // Haiku 4.5: `effort` va server-side fallback yo'q; fikrlash budget_tokens bilan yoqiladi
+          this.client.beta.messages.stream({
+            ...common,
+            thinking: { type: 'enabled', budget_tokens: 4000 },
+            output_config: { format },
+          })
+        : this.client.beta.messages.stream({
+            ...common,
+            // Rad etilsa — server o'zi mos modelda qayta bajaradi
+            betas: ['server-side-fallback-2026-07-01'],
+            fallbacks: 'default',
+            output_config: { effort: 'high', format },
+          });
       message = await stream.finalMessage();
     } catch (err) {
       throw new Error(describeApiError(err));
