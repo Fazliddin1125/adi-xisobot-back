@@ -1,3 +1,8 @@
+import { setDefaultResultOrder } from 'node:dns';
+// Server va Docker konteynerida IPv6 tarmoq yo'q: DNS IPv6 manzilni birinchi bersa,
+// Telegram/Anthropic'ga ulanish kutib qolib ETIMEDOUT bo'ladi — avval IPv4 ishlatamiz
+setDefaultResultOrder('ipv4first');
+
 import { env } from './config/env.js';
 import { buildContainer } from './container.js';
 import { connectDatabase } from './infrastructure/db/connect.js';
