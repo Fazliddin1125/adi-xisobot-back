@@ -12,6 +12,7 @@ import type { DepartmentRepository } from '../../domain/repositories/DepartmentR
 import type { QuarterlyReportRepository } from '../../domain/repositories/QuarterlyReportRepository.js';
 import type { TaskRepository } from '../../domain/repositories/TaskRepository.js';
 import type { UserRepository } from '../../domain/repositories/UserRepository.js';
+import type { SettingsRepository } from '../../domain/repositories/SettingsRepository.js';
 import { MONTH_NAMES, dayKey, monthOf, quarterMonths, quarterRange } from '../../shared/time.js';
 import type { Actor } from '../Actor.js';
 import type { ReportRenderer } from '../ports/ReportRenderer.js';
@@ -46,10 +47,17 @@ export class QuarterlyReportService {
     private readonly departments: DepartmentRepository,
     private readonly writer: ReportWriter,
     private readonly renderer: ReportRenderer,
+    private readonly settings: SettingsRepository,
   ) {}
 
-  aiStatus() {
-    return { enabled: this.writer.usesAi, writer: this.writer.name };
+  /** AI ulanganmi va joriy foydalanuvchi hisobot tayyorlay oladimi */
+  async aiStatus(actor: Actor) {
+    return { enabled: this.writer.usesAi, writer: this.writer.name, canGenerate: await this.canGenerate(actor) };
+  }
+
+  /** Superadmin o'chirib qo'ysa, faqat superadminning o'zi tayyorlay oladi (token sarfini nazorat qilish) */
+  private async canGenerate(actor: Actor): Promise<boolean> {
+    return actor.role === 'superadmin' || (await this.settings.get()).reportGenerationEnabled;
   }
 
   async get(departmentId: string, year: number, quarter: number): Promise<QuarterlyReport | null> {
@@ -61,6 +69,9 @@ export class QuarterlyReportService {
    * Matn fonda yoziladi (AI 1–2 daqiqa olishi mumkin) — frontend holatni so'rab turadi.
    */
   async generate(actor: Actor, departmentId: string, year: number, quarter: number): Promise<QuarterlyReport> {
+    if (!(await this.canGenerate(actor))) {
+      throw AppError.forbidden('Hisobot tayyorlash superadmin tomonidan vaqtincha o‘chirilgan. Tayyor hisobotlarni ko‘rish va yuklash mumkin.');
+    }
     const department = await this.departments.findById(departmentId);
     if (!department) throw AppError.notFound('Bo‘lim topilmadi');
 

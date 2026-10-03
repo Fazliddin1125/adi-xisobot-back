@@ -54,6 +54,7 @@ export function buildContainer() {
     departmentRepo,
     reportWriter,
     new DocxReportRenderer(env.reportTemplatePath),
+    settingsRepo,
   );
 
   const authService = new AuthService(userRepo, hasher, tokens);

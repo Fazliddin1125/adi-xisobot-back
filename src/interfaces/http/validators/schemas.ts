@@ -49,6 +49,7 @@ export const settingsSchema = z.object({
   appealStatusEnabled: z.boolean().optional(),
   visitorTypeEnabled: z.boolean().optional(),
   channelEnabled: z.boolean().optional(),
+  reportGenerationEnabled: z.boolean().optional(),
 });
 
 export const createAppealSchema = z.object({

@@ -7,8 +7,8 @@ import { idParamSchema, quarterlyQuerySchema, quarterlyUpdateSchema } from '../v
 export class QuarterlyReportController {
   constructor(private readonly reports: QuarterlyReportService) {}
 
-  aiStatus = (_req: Request, res: Response) => {
-    res.json(this.reports.aiStatus());
+  aiStatus = async (req: Request, res: Response) => {
+    res.json(await this.reports.aiStatus(actorOf(req)));
   };
 
   get = async (req: Request, res: Response) => {

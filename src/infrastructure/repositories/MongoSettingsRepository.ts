@@ -10,6 +10,7 @@ export class MongoSettingsRepository implements SettingsRepository {
       appealStatusEnabled: doc.appealStatusEnabled ?? DEFAULT_SETTINGS.appealStatusEnabled,
       visitorTypeEnabled: doc.visitorTypeEnabled ?? DEFAULT_SETTINGS.visitorTypeEnabled,
       channelEnabled: doc.channelEnabled ?? DEFAULT_SETTINGS.channelEnabled,
+      reportGenerationEnabled: doc.reportGenerationEnabled ?? DEFAULT_SETTINGS.reportGenerationEnabled,
     };
   }
 

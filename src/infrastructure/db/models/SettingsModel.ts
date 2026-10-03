@@ -6,6 +6,7 @@ const settingsSchema = new Schema({
   appealStatusEnabled: { type: Boolean, default: true },
   visitorTypeEnabled: { type: Boolean, default: true },
   channelEnabled: { type: Boolean, default: true },
+  reportGenerationEnabled: { type: Boolean, default: true },
 });
 
 export const SettingsModel = model('Settings', settingsSchema);
