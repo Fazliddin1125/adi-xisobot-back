@@ -8,6 +8,12 @@ import { TaskService } from './application/services/TaskService.js';
 import { DepartmentService } from './application/services/DepartmentService.js';
 import { SettingsService } from './application/services/SettingsService.js';
 import { NotificationService } from './application/services/NotificationService.js';
+import { QuarterlyReportService } from './application/services/QuarterlyReportService.js';
+import { MongoQuarterlyReportRepository } from './infrastructure/repositories/MongoQuarterlyReportRepository.js';
+import { ClaudeReportWriter } from './infrastructure/ai/ClaudeReportWriter.js';
+import { DraftReportWriter } from './infrastructure/ai/DraftReportWriter.js';
+import { DocxReportRenderer } from './infrastructure/export/DocxReportRenderer.js';
+import { QuarterlyReportController } from './interfaces/http/controllers/QuarterlyReportController.js';
 import { TelegramApi } from './infrastructure/telegram/TelegramApi.js';
 import { DisabledMessageSender, TelegramMessageSender } from './infrastructure/telegram/TelegramMessageSender.js';
 import { TelegramIdBot } from './interfaces/telegram/TelegramIdBot.js';
@@ -39,6 +45,16 @@ export function buildContainer() {
   const telegramApi = env.telegram.botToken ? new TelegramApi(env.telegram.botToken, env.telegram.apiBase) : null;
   const sender = telegramApi ? new TelegramMessageSender(telegramApi) : new DisabledMessageSender();
   const notificationService = new NotificationService(sender, userRepo, env.appUrl);
+  const reportWriter = env.ai.anthropicApiKey ? new ClaudeReportWriter(env.ai.anthropicApiKey, env.ai.model) : new DraftReportWriter();
+  const quarterlyReportService = new QuarterlyReportService(
+    new MongoQuarterlyReportRepository(),
+    appealRepo,
+    taskRepo,
+    userRepo,
+    departmentRepo,
+    reportWriter,
+    new DocxReportRenderer(env.reportTemplatePath),
+  );
 
   const authService = new AuthService(userRepo, hasher, tokens);
   const userService = new UserService(userRepo, appealRepo, taskRepo, departmentRepo, hasher);
@@ -61,6 +77,8 @@ export function buildContainer() {
     taskController: new TaskController(new TaskService(taskRepo, userRepo, notificationService)),
     departmentController: new DepartmentController(new DepartmentService(departmentRepo, userRepo)),
     settingsController: new SettingsController(new SettingsService(settingsRepo)),
+    quarterlyReportController: new QuarterlyReportController(quarterlyReportService),
+    reportWriter,
   };
 }
 

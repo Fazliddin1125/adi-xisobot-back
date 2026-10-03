@@ -18,6 +18,8 @@ export interface TaskRepository {
   delete(id: string): Promise<void>;
   list(filter: TaskFilter): Promise<Task[]>;
   countByUser(userId: string): Promise<number>;
+  /** [from, to) oralig'ida bajarilgan va ijrochilardan kamida biri ro'yxatda bo'lgan topshiriqlar */
+  listCompleted(filter: { from: Date; to: Date; assigneeIds: string[] }): Promise<Task[]>;
   addComment(taskId: string, authorId: string, text: string): Promise<TaskComment>;
   listComments(taskId: string): Promise<TaskComment[]>;
   countComments(taskIds: string[]): Promise<Record<string, number>>;

@@ -49,6 +49,11 @@ export function createApp(c: Container, corsOrigin: string) {
   // Rahbarlar: hisobotlar, Excel, xodimlar ro'yxati
   api.get('/reports/staff', auth, managers, c.statsController.perStaff);
   api.get('/reports/export', auth, managers, c.statsController.exportXlsx);
+  api.get('/reports/quarterly/ai-status', auth, managers, c.quarterlyReportController.aiStatus);
+  api.get('/reports/quarterly', auth, managers, c.quarterlyReportController.get);
+  api.post('/reports/quarterly', auth, managers, c.quarterlyReportController.generate);
+  api.patch('/reports/quarterly/:id', auth, managers, c.quarterlyReportController.update);
+  api.get('/reports/quarterly/:id/docx', auth, managers, c.quarterlyReportController.docx);
   api.get('/users', auth, managers, c.userController.list);
   api.get('/users/:id', auth, managers, c.userController.get);
 

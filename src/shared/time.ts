@@ -89,3 +89,23 @@ export function formatDateTime(date: Date): string {
   const [day, time] = shifted(date).toISOString().slice(0, 16).split('T');
   return `${day.split('-').reverse().join('.')} ${time}`;
 }
+
+export const MONTH_NAMES = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
+
+/** Chorak (1–4) oylari: 2-chorak → [4, 5, 6] */
+export function quarterMonths(quarter: number): number[] {
+  const first = (quarter - 1) * 3 + 1;
+  return [first, first + 1, first + 2];
+}
+
+export function quarterRange(year: number, quarter: number): DateRange {
+  const [first, , last] = quarterMonths(quarter);
+  return { from: monthRange(year, first).from, to: monthRange(year, last).to };
+}
+
+/** Toshkent bo'yicha sananing oyi (1–12) */
+export function monthOf(date: Date): number {
+  return shifted(date).getUTCMonth() + 1;
+}
+
+export const ROMAN = ['I', 'II', 'III', 'IV'];

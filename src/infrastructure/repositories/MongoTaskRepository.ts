@@ -80,6 +80,17 @@ export class MongoTaskRepository implements TaskRepository {
     return TaskModel.countDocuments({ $or: [{ assigneeIds: me }, { creatorId: me }] });
   }
 
+  async listCompleted({ from, to, assigneeIds }: { from: Date; to: Date; assigneeIds: string[] }): Promise<Task[]> {
+    const docs = await TaskModel.find({
+      status: 'bajarildi',
+      completedAt: { $gte: from, $lt: to },
+      assigneeIds: { $in: assigneeIds.map(oid) },
+    })
+      .sort({ completedAt: 1 })
+      .lean();
+    return docs.map(toEntity);
+  }
+
   async addComment(taskId: string, authorId: string, text: string): Promise<TaskComment> {
     return toComment((await TaskCommentModel.create({ taskId, authorId, text })).toObject());
   }

@@ -25,6 +25,12 @@ export const env = {
     /** /start javobida kimga murojaat qilish (jo'nalish kelishigida), masalan "Fazliddinga (@fazliddin_bakhrom)" */
     supportContact: process.env.TELEGRAM_SUPPORT_CONTACT || 'ATM tizimi administratoriga',
   },
+  ai: {
+    /** Bo'sh bo'lsa — hisobot AI'siz qoralama sifatida tuziladi */
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY || undefined,
+    model: process.env.AI_MODEL || 'claude-opus-5-5',
+  },
+  reportTemplatePath: process.env.REPORT_TEMPLATE_PATH || 'templates/chorak-hisoboti.docx',
   admin: {
     username: process.env.ADMIN_USERNAME ?? 'admin',
     password: process.env.ADMIN_PASSWORD ?? 'admin12345',

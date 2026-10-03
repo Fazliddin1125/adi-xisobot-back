@@ -20,6 +20,12 @@ async function bootstrap() {
     console.log('TELEGRAM_BOT_TOKEN berilmagan — Telegram bildirishnomalari o\'chiq');
   }
 
+  console.log(
+    container.reportWriter.usesAi
+      ? `Choraklik hisobot: AI yoqilgan (${container.reportWriter.name})`
+      : 'ANTHROPIC_API_KEY berilmagan — choraklik hisobot AI\'siz qoralama sifatida tuziladi',
+  );
+
   createApp(container, env.corsOrigin).listen(env.port, () => {
     console.log(`API ishga tushdi: http://localhost:${env.port}/api`);
   });

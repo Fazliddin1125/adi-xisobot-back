@@ -128,3 +128,30 @@ export const taskListQuerySchema = z.object({
 });
 
 export const idParamSchema = z.object({ id: objectId });
+
+const year = z.coerce.number().int().min(2020).max(2100);
+const quarter = z.coerce.number().int().min(1, 'Chorak 1–4 bo‘lishi kerak').max(4, 'Chorak 1–4 bo‘lishi kerak');
+
+export const quarterlyQuerySchema = z.object({ departmentId: objectId, year, quarter });
+
+const reportItem = z.object({ text: z.string().trim().min(1).max(3000), sources: z.array(z.string().max(10)).max(500) });
+export const quarterlyUpdateSchema = z.object({
+  header: z
+    .object({
+      approverTitle: z.string().trim().max(200),
+      approverName: z.string().trim().max(200),
+      centerName: z.string().trim().max(300),
+      departmentName: z.string().trim().max(300),
+      signerTitle: z.string().trim().max(300),
+      signerName: z.string().trim().max(200),
+    })
+    .optional(),
+  content: z
+    .object({
+      summary: z.string().trim().max(5000),
+      months: z.array(z.object({ month: z.number().int().min(1).max(12), name: z.string().max(30), items: z.array(reportItem).max(200) })).max(3),
+      extra: z.array(reportItem).max(200),
+      conclusion: z.array(z.string().trim().min(1).max(5000)).max(10),
+    })
+    .optional(),
+});
