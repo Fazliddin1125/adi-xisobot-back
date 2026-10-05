@@ -106,7 +106,8 @@ export const createTaskSchema = z.object({
     .transform((v) => (v ? v : undefined)),
   deadline,
   visibility: z.enum(TASK_VISIBILITY).default('public'),
-  assigneeIds: z.array(objectId).min(1, 'Kamida bitta ijrochi tanlang').max(20),
+  // Bo'sh — egasi yo'q umumiy ish (har kim qabul qila oladi)
+  assigneeIds: z.array(objectId).max(20),
 });
 
 export const updateTaskSchema = z.object({
@@ -114,7 +115,7 @@ export const updateTaskSchema = z.object({
   description: z.string().trim().max(5000).optional(),
   deadline: deadline.optional(),
   visibility: z.enum(TASK_VISIBILITY).optional(),
-  assigneeIds: z.array(objectId).min(1, 'Kamida bitta ijrochi tanlang').max(20).optional(),
+  assigneeIds: z.array(objectId).max(20).optional(),
 });
 
 export const taskStatusSchema = z.object({
@@ -124,7 +125,7 @@ export const taskStatusSchema = z.object({
 });
 export const taskCommentSchema = z.object({ text: z.string().trim().min(1, 'Izoh bo\'sh').max(2000) });
 export const taskListQuerySchema = z.object({
-  scope: z.enum(['all', 'mine']).optional(),
+  scope: z.enum(['all', 'mine', 'common']).optional(),
   assigneeId: objectId.optional(),
   includeArchive: z
     .enum(['true', 'false'])

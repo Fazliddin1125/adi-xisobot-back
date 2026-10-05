@@ -8,6 +8,8 @@ export interface TaskFilter {
   assigneeId?: string;
   /** Bajarilganlardan faqat shu sanadan keyin yakunlanganlar */
   doneSince?: Date;
+  /** Faqat egasi yo'q umumiy ishlar (bajarilmaganlari) */
+  unassigned?: boolean;
 }
 
 export interface TaskRepository {
@@ -18,6 +20,13 @@ export interface TaskRepository {
   delete(id: string): Promise<void>;
   list(filter: TaskFilter): Promise<Task[]>;
   countByUser(userId: string): Promise<number>;
+  /**
+   * Umumiy ishni atomik qabul qilish: egasi yo'q va bajarilmagan bo'lsagina userId'ga beriladi.
+   * Boshqasi oldinroq qabul qilgan bo'lsa — null.
+   */
+  claim(id: string, userId: string): Promise<Task | null>;
+  /** Ijrochisi bor, bajarilmagan topshiriqlar — bandlikni hisoblash uchun */
+  listActiveAssigned(): Promise<Task[]>;
   /** [from, to) oralig'ida bajarilgan va ijrochilardan kamida biri ro'yxatda bo'lgan topshiriqlar */
   listCompleted(filter: { from: Date; to: Date; assigneeIds: string[] }): Promise<Task[]>;
   addComment(taskId: string, authorId: string, text: string): Promise<TaskComment>;

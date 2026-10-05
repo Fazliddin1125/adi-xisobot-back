@@ -52,6 +52,7 @@ export function createApp(c: Container, corsOrigin?: string) {
   api.delete('/tasks/:id', auth, c.taskController.remove);
   api.patch('/tasks/:id/status', auth, c.taskController.changeStatus);
   api.post('/tasks/:id/comments', auth, c.taskController.addComment);
+  api.post('/tasks/:id/claim', auth, c.taskController.claim);
 
   // Rahbarlar: hisobotlar, Excel, xodimlar ro'yxati
   api.get('/reports/staff', auth, managers, c.statsController.perStaff);
@@ -61,6 +62,7 @@ export function createApp(c: Container, corsOrigin?: string) {
   api.post('/reports/quarterly', auth, managers, c.quarterlyReportController.generate);
   api.patch('/reports/quarterly/:id', auth, managers, c.quarterlyReportController.update);
   api.get('/reports/quarterly/:id/docx', auth, managers, c.quarterlyReportController.docx);
+  api.get('/reports/workload', auth, managers, c.taskController.workload);
   api.get('/users', auth, managers, c.userController.list);
   api.get('/users/:id', auth, managers, c.userController.get);
 

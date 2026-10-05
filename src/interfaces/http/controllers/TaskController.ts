@@ -35,6 +35,14 @@ export class TaskController {
     res.json(await this.tasks.changeStatus(actorOf(req), params(req, idParamSchema).id, status, comment));
   };
 
+  claim = async (req: Request, res: Response) => {
+    res.json(await this.tasks.claim(actorOf(req), params(req, idParamSchema).id));
+  };
+
+  workload = async (_req: Request, res: Response) => {
+    res.json(await this.tasks.workload());
+  };
+
   remove = async (req: Request, res: Response) => {
     await this.tasks.delete(actorOf(req), params(req, idParamSchema).id);
     res.status(204).end();

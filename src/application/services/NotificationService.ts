@@ -78,6 +78,23 @@ export class NotificationService {
     );
   }
 
+  /** Umumiy ishni kimdir qabul qilganda — ishni yaratgan rahbarga */
+  async taskClaimed(task: Task, claimerId: string): Promise<void> {
+    if (!this.sender.enabled || task.creatorId === claimerId) return;
+    const [creator, claimer] = await Promise.all([this.users.findById(task.creatorId), this.users.findById(claimerId)]);
+    if (!creator?.telegramId) return;
+    const html = [
+      '🙋 <b>Umumiy ish qabul qilindi</b>',
+      '',
+      `<b>${escapeHtml(task.title)}</b>`,
+      `👤 Qabul qildi: ${escapeHtml(claimer?.fullName ?? '—')}`,
+      `🗓 Muddat: <b>${dayKey(task.deadline).split('-').reverse().join('.')}</b>`,
+    ].join('\n');
+    await this.sender.send(creator.telegramId, html).catch((err) => {
+      console.error(`Telegram xabari yuborilmadi (${creator.username}):`, (err as Error).message);
+    });
+  }
+
   /** Superadmin: ID to'g'riligini tekshirish uchun sinov xabari */
   async sendTest(userId: string): Promise<void> {
     if (!this.sender.enabled) throw AppError.badRequest('Telegram bot sozlanmagan (TELEGRAM_BOT_TOKEN yo\'q)');

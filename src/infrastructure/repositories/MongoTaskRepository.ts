@@ -70,8 +70,26 @@ export class MongoTaskRepository implements TaskRepository {
     }
     if (filter.assigneeId) and.push({ assigneeIds: oid(filter.assigneeId) });
     if (filter.doneSince) and.push({ $or: [{ status: { $ne: 'bajarildi' } }, { completedAt: { $gte: filter.doneSince } }] });
+    if (filter.unassigned) and.push({ 'assigneeIds.0': { $exists: false }, status: { $ne: 'bajarildi' } });
 
     const docs = await TaskModel.find(and.length ? { $and: and } : {}).sort({ deadline: 1 }).lean();
+    return docs.map(toEntity);
+  }
+
+  async claim(id: string, userId: string): Promise<Task | null> {
+    if (!isValidObjectId(id)) return null;
+    const doc = await TaskModel.findOneAndUpdate(
+      { _id: id, 'assigneeIds.0': { $exists: false }, status: { $ne: 'bajarildi' } },
+      { $set: { assigneeIds: [oid(userId)], status: 'jarayonda' } },
+      { new: true },
+    ).lean();
+    return doc ? toEntity(doc) : null;
+  }
+
+  async listActiveAssigned(): Promise<Task[]> {
+    const docs = await TaskModel.find({ status: { $ne: 'bajarildi' }, 'assigneeIds.0': { $exists: true } })
+      .sort({ deadline: 1 })
+      .lean();
     return docs.map(toEntity);
   }
 
