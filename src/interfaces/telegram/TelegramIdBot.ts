@@ -69,6 +69,7 @@ export class TelegramIdBot {
           intro,
           '',
           '✅ Hisobingiz ulangan. Yangi topshiriq berilsa, darhol shu yerga yozaman.',
+          `🆔 Telegram ID raqamingiz: <code>${chatId}</code>`,
           username ? `\n💬 Savollar bo'lsa: @${username}` : null,
         ]
       : [
