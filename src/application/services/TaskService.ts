@@ -10,6 +10,8 @@ import {
   type TaskVisibility,
 } from '../../domain/entities/Task.js';
 import { can } from '../../domain/policies.js';
+import { isOnVacation } from '../../domain/entities/User.js';
+import { dayKey } from '../../shared/time.js';
 import type { TaskRepository } from '../../domain/repositories/TaskRepository.js';
 import type { UserRepository } from '../../domain/repositories/UserRepository.js';
 import type { Actor } from '../Actor.js';
@@ -38,9 +40,12 @@ interface PersonRef {
   fullName: string;
 }
 
-export interface TaskView extends Omit<Task, 'assigneeIds' | 'creatorId'> {
+export interface TaskView extends Omit<Task, 'assigneeIds' | 'creatorId' | 'completedById' | 'history'> {
   assignees: PersonRef[];
   creator: PersonRef;
+  /** Kim "Bajarildi"ga o'tkazdi */
+  completedBy?: PersonRef;
+  history: Array<{ status: TaskStatus; by: PersonRef; at: Date }>;
   overdue: boolean;
   commentsCount: number;
   canManage: boolean;
@@ -58,6 +63,8 @@ export interface WorkloadRow {
   departmentId?: string;
   activeCount: number;
   overdueCount: number;
+  /** Ta'til oxirgi kuni ("YYYY-MM-DD"), bugun ta'tilda bo'lsa */
+  vacationTo?: string;
   tasks: Array<{ id: string; title: string; status: TaskStatus; deadline: Date; overdue: boolean }>;
 }
 
@@ -129,7 +136,7 @@ export class TaskService {
       throw AppError.badRequest('Qaytarish sababini izohda yozing');
     }
 
-    const updated = await this.tasks.setStatus(id, status, status === 'bajarildi' ? new Date() : null);
+    const updated = await this.tasks.setStatus(id, status, actor.id);
     if (note) await this.tasks.addComment(id, actor.id, returning ? `Qaytarildi: ${note}` : note);
     if (returning) void this.notifications.taskReturned(updated!, actor.id, note!);
     return (await this.toViews(actor, [updated!]))[0];
@@ -154,6 +161,7 @@ export class TaskService {
   async workload(): Promise<WorkloadRow[]> {
     const [users, tasks] = await Promise.all([this.users.findAll(), this.tasks.listActiveAssigned()]);
     const now = Date.now();
+    const today = dayKey(new Date());
     return users.map((u) => {
       const mine = tasks
         .filter((t) => t.assigneeIds.includes(u.id))
@@ -165,6 +173,7 @@ export class TaskService {
         departmentId: u.departmentId,
         activeCount: mine.length,
         overdueCount: mine.filter((t) => t.overdue).length,
+        vacationTo: isOnVacation(u, today) ? u.vacationTo : undefined,
         tasks: mine,
       };
     });
@@ -225,16 +234,20 @@ export class TaskService {
   }
 
   private async toViews(actor: Actor, tasks: Task[]): Promise<TaskView[]> {
-    const names = await this.nameMap(tasks.flatMap((t) => [t.creatorId, ...t.assigneeIds]));
+    const names = await this.nameMap(
+      tasks.flatMap((t) => [t.creatorId, ...t.assigneeIds, ...(t.completedById ? [t.completedById] : []), ...t.history.map((e) => e.byId)]),
+    );
     const commentCounts = await this.tasks.countComments(tasks.map((t) => t.id));
     const now = Date.now();
     const ref = (id: string) => ({ id, fullName: names.get(id) ?? '—' });
-    return tasks.map(({ assigneeIds, creatorId, ...t }) => {
-      const task = { ...t, assigneeIds, creatorId };
+    return tasks.map(({ assigneeIds, creatorId, completedById, history, ...t }) => {
+      const task = { ...t, assigneeIds, creatorId, completedById, history };
       return {
         ...t,
         assignees: assigneeIds.map(ref),
         creator: ref(creatorId),
+        completedBy: t.status === 'bajarildi' && completedById ? ref(completedById) : undefined,
+        history: history.map((e) => ({ status: e.status, by: ref(e.byId), at: e.at })),
         overdue: t.status !== 'bajarildi' && t.deadline.getTime() < now,
         commentsCount: commentCounts[t.id] ?? 0,
         canManage: this.canManage(actor, task),

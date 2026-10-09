@@ -8,6 +8,8 @@ export interface Settings {
   channelEnabled: boolean;
   /** Rahbarlar choraklik hisobotni (AI, token sarflaydi) tayyorlay oladimi. Superadmin har doim tayyorlay oladi */
   reportGenerationEnabled: boolean;
+  /** Har kuni 18:00 da bo'lim boshliqlariga Telegram orqali kunlik hisobot */
+  dailyReportEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -15,4 +17,5 @@ export const DEFAULT_SETTINGS: Settings = {
   visitorTypeEnabled: true,
   channelEnabled: true,
   reportGenerationEnabled: true,
+  dailyReportEnabled: true,
 };

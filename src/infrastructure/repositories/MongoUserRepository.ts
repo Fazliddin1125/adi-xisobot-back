@@ -13,6 +13,8 @@ function toEntity(doc: UserDoc): User {
     role: doc.role,
     departmentId: doc.departmentId ? String(doc.departmentId) : undefined,
     telegramId: doc.telegramId ?? undefined,
+    vacationFrom: doc.vacationFrom ?? undefined,
+    vacationTo: doc.vacationTo ?? undefined,
     createdAt: doc.createdAt,
   };
 }

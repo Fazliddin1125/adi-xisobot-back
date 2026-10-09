@@ -7,6 +7,8 @@ export interface NewUser {
   role: Role;
   departmentId?: string | null;
   telegramId?: string | null;
+  vacationFrom?: string | null;
+  vacationTo?: string | null;
 }
 
 export interface UserRepository {

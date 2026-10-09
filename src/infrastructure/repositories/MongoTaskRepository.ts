@@ -14,6 +14,8 @@ function toEntity(doc: TaskDoc): Task {
     assigneeIds: doc.assigneeIds.map(String),
     creatorId: String(doc.creatorId),
     completedAt: doc.completedAt ?? undefined,
+    completedById: doc.completedById ? String(doc.completedById) : undefined,
+    history: (doc.history ?? []).map((e) => ({ status: e.status, byId: String(e.byId), at: e.at })),
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   };
@@ -31,7 +33,8 @@ const oid = (id: string) => new Types.ObjectId(id);
 
 export class MongoTaskRepository implements TaskRepository {
   async create(data: NewTask): Promise<Task> {
-    return toEntity((await TaskModel.create(data)).toObject());
+    const history = [{ status: 'yangi', byId: data.creatorId, at: new Date() }];
+    return toEntity((await TaskModel.create({ ...data, history })).toObject());
   }
 
   async findById(id: string): Promise<Task | null> {
@@ -48,8 +51,13 @@ export class MongoTaskRepository implements TaskRepository {
     return doc ? toEntity(doc) : null;
   }
 
-  async setStatus(id: string, status: TaskStatus, completedAt: Date | null): Promise<Task | null> {
-    const update = completedAt ? { status, completedAt } : { status, $unset: { completedAt: 1 } };
+  async setStatus(id: string, status: TaskStatus, actorId: string): Promise<Task | null> {
+    const at = new Date();
+    const push = { $push: { history: { status, byId: oid(actorId), at } } };
+    const update =
+      status === 'bajarildi'
+        ? { $set: { status, completedAt: at, completedById: oid(actorId) }, ...push }
+        : { $set: { status }, $unset: { completedAt: 1, completedById: 1 }, ...push };
     const doc = await TaskModel.findByIdAndUpdate(id, update, { new: true }).lean();
     return doc ? toEntity(doc) : null;
   }
@@ -80,7 +88,10 @@ export class MongoTaskRepository implements TaskRepository {
     if (!isValidObjectId(id)) return null;
     const doc = await TaskModel.findOneAndUpdate(
       { _id: id, 'assigneeIds.0': { $exists: false }, status: { $ne: 'bajarildi' } },
-      { $set: { assigneeIds: [oid(userId)], status: 'jarayonda' } },
+      {
+        $set: { assigneeIds: [oid(userId)], status: 'jarayonda' },
+        $push: { history: { status: 'jarayonda', byId: oid(userId), at: new Date() } },
+      },
       { new: true },
     ).lean();
     return doc ? toEntity(doc) : null;
@@ -106,6 +117,16 @@ export class MongoTaskRepository implements TaskRepository {
     })
       .sort({ completedAt: 1 })
       .lean();
+    return docs.map(toEntity);
+  }
+
+  async listCreated({ from, to }: { from: Date; to: Date }): Promise<Task[]> {
+    const docs = await TaskModel.find({ createdAt: { $gte: from, $lt: to } }).sort({ createdAt: 1 }).lean();
+    return docs.map(toEntity);
+  }
+
+  async listCompletedBetween({ from, to }: { from: Date; to: Date }): Promise<Task[]> {
+    const docs = await TaskModel.find({ status: 'bajarildi', completedAt: { $gte: from, $lt: to } }).sort({ completedAt: 1 }).lean();
     return docs.map(toEntity);
   }
 

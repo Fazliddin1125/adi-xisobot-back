@@ -16,7 +16,8 @@ export interface TaskRepository {
   create(data: NewTask): Promise<Task>;
   findById(id: string): Promise<Task | null>;
   update(id: string, changes: TaskChanges): Promise<Task | null>;
-  setStatus(id: string, status: TaskStatus, completedAt: Date | null): Promise<Task | null>;
+  /** Bosqichni o'zgartiradi va tarixga yozadi; "bajarildi" bo'lsa completedAt/completedById qo'yiladi */
+  setStatus(id: string, status: TaskStatus, actorId: string): Promise<Task | null>;
   delete(id: string): Promise<void>;
   list(filter: TaskFilter): Promise<Task[]>;
   countByUser(userId: string): Promise<number>;
@@ -29,6 +30,10 @@ export interface TaskRepository {
   listActiveAssigned(): Promise<Task[]>;
   /** [from, to) oralig'ida bajarilgan va ijrochilardan kamida biri ro'yxatda bo'lgan topshiriqlar */
   listCompleted(filter: { from: Date; to: Date; assigneeIds: string[] }): Promise<Task[]>;
+  /** [from, to) oralig'ida yaratilgan topshiriqlar */
+  listCreated(range: { from: Date; to: Date }): Promise<Task[]>;
+  /** [from, to) oralig'ida bajarilgan barcha topshiriqlar */
+  listCompletedBetween(range: { from: Date; to: Date }): Promise<Task[]>;
   addComment(taskId: string, authorId: string, text: string): Promise<TaskComment>;
   listComments(taskId: string): Promise<TaskComment[]>;
   countComments(taskIds: string[]): Promise<Record<string, number>>;

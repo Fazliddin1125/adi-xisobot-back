@@ -10,6 +10,8 @@ const userSchema = new Schema(
     role: { type: String, enum: ROLES, default: 'xodim', required: true },
     departmentId: { type: Types.ObjectId, ref: 'Department', default: null },
     telegramId: { type: String, default: null, trim: true },
+    vacationFrom: { type: String, default: null },
+    vacationTo: { type: String, default: null },
   },
   { timestamps: true },
 );

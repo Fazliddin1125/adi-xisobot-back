@@ -11,14 +11,29 @@ const taskSchema = new Schema(
     assigneeIds: [{ type: Types.ObjectId, ref: 'User', required: true }],
     creatorId: { type: Types.ObjectId, ref: 'User', required: true },
     completedAt: { type: Date },
+    completedById: { type: Types.ObjectId, ref: 'User' },
+    history: [
+      {
+        _id: false,
+        status: { type: String, enum: TASK_STATUSES, required: true },
+        byId: { type: Types.ObjectId, ref: 'User', required: true },
+        at: { type: Date, required: true },
+      },
+    ],
   },
   { timestamps: true },
 );
 
 taskSchema.index({ assigneeIds: 1, status: 1 });
 taskSchema.index({ creatorId: 1 });
+taskSchema.index({ createdAt: 1 });
+taskSchema.index({ completedAt: 1 });
 
-export type TaskDoc = InferSchemaType<typeof taskSchema> & { _id: unknown };
+// history — oddiy massiv sifatida (lean() natijasi), subdocument tiplarisiz
+export type TaskDoc = Omit<InferSchemaType<typeof taskSchema>, 'history'> & {
+  _id: unknown;
+  history?: Array<{ status: (typeof TASK_STATUSES)[number]; byId: unknown; at: Date }>;
+};
 export const TaskModel = model('Task', taskSchema);
 
 const taskCommentSchema = new Schema(

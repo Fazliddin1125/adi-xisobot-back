@@ -65,6 +65,8 @@ export function createApp(c: Container, corsOrigin?: string) {
   api.get('/reports/workload', auth, managers, c.taskController.workload);
   api.get('/users', auth, managers, c.userController.list);
   api.get('/users/:id', auth, managers, c.userController.get);
+  api.put('/users/:id/vacation', auth, managers, c.userController.setVacation);
+  api.get('/reports/daily', auth, managers, c.dailyReportController.preview);
 
   // Superadmin: foydalanuvchilar, bo'limlar, sozlamalar
   const admin = Router();
@@ -77,6 +79,7 @@ export function createApp(c: Container, corsOrigin?: string) {
   admin.patch('/departments/:id', c.departmentController.update);
   admin.delete('/departments/:id', c.departmentController.remove);
   admin.patch('/settings', c.settingsController.update);
+  admin.post('/daily-report/test', c.dailyReportController.sendTest);
   api.use('/admin', admin);
 
   app.use('/api', api);

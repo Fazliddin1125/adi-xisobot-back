@@ -82,6 +82,14 @@ export class UserService {
     return toPublicUser(updated!);
   }
 
+  /** Rahbarlar: xodimni ta'tilga chiqarish (null — ta'tilni tugatish) */
+  async setVacation(id: string, vacation: { from: string; to: string } | null): Promise<PublicUser> {
+    if (vacation && vacation.from > vacation.to) throw AppError.badRequest('Ta\'til tugash sanasi boshlanishidan oldin bo\'lmasin');
+    const updated = await this.users.update(id, { vacationFrom: vacation?.from ?? null, vacationTo: vacation?.to ?? null });
+    if (!updated) throw AppError.notFound('Xodim topilmadi');
+    return toPublicUser(updated);
+  }
+
   async delete(actorId: string, id: string): Promise<void> {
     if (id === actorId) throw AppError.badRequest('O\'zingizni o\'chira olmaysiz');
     const user = await this.users.findById(id);

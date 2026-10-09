@@ -15,8 +15,18 @@ export interface Task {
   assigneeIds: string[];
   creatorId: string;
   completedAt?: Date;
+  /** Kim "Bajarildi"ga o'tkazdi (bir nechta ijrochi bo'lsa ham — aynan kim bosgani) */
+  completedById?: string;
+  /** Bosqichlar tarixi: kim, qachon, qaysi bosqichga o'tkazdi */
+  history: TaskEvent[];
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface TaskEvent {
+  status: TaskStatus;
+  byId: string;
+  at: Date;
 }
 
 export type NewTask = Pick<Task, 'title' | 'description' | 'deadline' | 'visibility' | 'assigneeIds' | 'creatorId'>;

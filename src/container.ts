@@ -9,6 +9,8 @@ import { DepartmentService } from './application/services/DepartmentService.js';
 import { SettingsService } from './application/services/SettingsService.js';
 import { NotificationService } from './application/services/NotificationService.js';
 import { QuarterlyReportService } from './application/services/QuarterlyReportService.js';
+import { DailyReportService } from './application/services/DailyReportService.js';
+import { DailyReportController } from './interfaces/http/controllers/DailyReportController.js';
 import { MongoQuarterlyReportRepository } from './infrastructure/repositories/MongoQuarterlyReportRepository.js';
 import { ClaudeReportWriter } from './infrastructure/ai/ClaudeReportWriter.js';
 import { DraftReportWriter } from './infrastructure/ai/DraftReportWriter.js';
@@ -58,6 +60,8 @@ export function buildContainer() {
     settingsRepo,
   );
 
+  const dailyReportService = new DailyReportService(appealRepo, taskRepo, userRepo, departmentRepo, settingsRepo, sender);
+
   const authService = new AuthService(userRepo, hasher, tokens, new MemoryLoginThrottle());
   const userService = new UserService(userRepo, appealRepo, taskRepo, departmentRepo, hasher);
   const appealService = new AppealService(appealRepo, userRepo, settingsRepo);
@@ -80,6 +84,8 @@ export function buildContainer() {
     departmentController: new DepartmentController(new DepartmentService(departmentRepo, userRepo)),
     settingsController: new SettingsController(new SettingsService(settingsRepo)),
     quarterlyReportController: new QuarterlyReportController(quarterlyReportService),
+    dailyReportController: new DailyReportController(dailyReportService),
+    dailyReportService,
     reportWriter,
   };
 }

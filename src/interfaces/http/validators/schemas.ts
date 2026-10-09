@@ -47,6 +47,10 @@ export const updateUserSchema = z.object({
   telegramId,
 });
 
+const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Sana formati YYYY-MM-DD bo\'lishi kerak');
+/** null — ta'tilni tugatish */
+export const vacationSchema = z.object({ vacation: z.object({ from: day, to: day }).nullable() });
+
 export const departmentSchema = z.object({ name: z.string().trim().min(2, 'Bo\'lim nomi kamida 2 belgi').max(120) });
 
 export const settingsSchema = z.object({
@@ -54,6 +58,7 @@ export const settingsSchema = z.object({
   visitorTypeEnabled: z.boolean().optional(),
   channelEnabled: z.boolean().optional(),
   reportGenerationEnabled: z.boolean().optional(),
+  dailyReportEnabled: z.boolean().optional(),
 });
 
 export const createAppealSchema = z.object({
