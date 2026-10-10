@@ -9,8 +9,10 @@ import type { UserRepository } from '../../domain/repositories/UserRepository.js
 import { dayKey, dayRange } from '../../shared/time.js';
 import type { MessageSender } from '../ports/MessageSender.js';
 
-/** Kunlik hisobotda "ish yozdimi" tekshiriladigan rollar (markaz boshlig'i va superadmin kirmaydi) */
+/** "Ish yozganlar" ro'yxatiga kiradigan rollar (markaz boshlig'i va superadmin kirmaydi) */
 const STAFF_ROLES: Role[] = ['xodim', 'bolim_boshligi'];
+/** "Ish yozmaganlar" — faqat xodimlar: bo'lim boshliqlari har kuni ish yozishi shart emas */
+const IDLE_ROLES: Role[] = ['xodim'];
 /** Hisobot boradiganlar */
 const RECIPIENT_ROLES: Role[] = ['bolim_boshligi'];
 const WEEKDAYS = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'];
@@ -35,7 +37,7 @@ export interface DailyReport {
   totalAppeals: number;
   /** Bugun ish yozganlar — ko'pidan kamiga */
   active: PersonRow[];
-  /** Bugun bitta ham ish yozmaganlar (ta'tildagilardan tashqari) */
+  /** Bugun bitta ham ish yozmagan xodimlar (ta'tildagilar va bo'lim boshliqlaridan tashqari) */
   idle: PersonRow[];
   onVacation: Array<{ fullName: string; departmentName: string; until: string }>;
 }
@@ -78,8 +80,8 @@ export class DailyReportService {
       tasksDone: doneBy.get(u.id) ?? 0,
     });
     const staff = users.filter((u) => STAFF_ROLES.includes(u.role));
-    const working = staff.filter((u) => !isOnVacation(u, day)).map(row);
-    const byDept = (a: PersonRow, b: PersonRow) => a.departmentName.localeCompare(b.departmentName) || a.fullName.localeCompare(b.fullName);
+    const working = staff.filter((u) => !isOnVacation(u, day));
+    const byName = (a: { fullName: string }, b: { fullName: string }) => a.fullName.localeCompare(b.fullName);
     const nameOf = (id?: string) => (id ? names.get(id) : undefined);
     const toTaskRow = (t: Task) => ({
       id: t.id,
@@ -94,12 +96,19 @@ export class DailyReportService {
       newTasks: created.map(toTaskRow),
       completedTasks: completed.map((t) => ({ id: t.id, title: t.title, completedBy: nameOf(t.completedById) })),
       totalAppeals: counts.reduce((sum, c) => sum + c.total, 0),
-      active: working.filter((r) => r.appeals > 0).sort((a, b) => b.appeals - a.appeals || a.fullName.localeCompare(b.fullName)),
-      idle: working.filter((r) => r.appeals === 0).sort(byDept),
+      active: working
+        .map(row)
+        .filter((r) => r.appeals > 0)
+        .sort((a, b) => b.appeals - a.appeals || byName(a, b)),
+      idle: working
+        .filter((u) => IDLE_ROLES.includes(u.role))
+        .map(row)
+        .filter((r) => r.appeals === 0)
+        .sort(byName),
       onVacation: staff
         .filter((u) => isOnVacation(u, day))
         .map((u) => ({ ...row(u), until: u.vacationTo! }))
-        .sort(byDept),
+        .sort(byName),
     };
   }
 
@@ -123,19 +132,16 @@ export class DailyReportService {
     lines.push('', `📝 <b>Ishlar: jami ${r.totalAppeals} ta, ${r.active.length} kishi</b>`);
     r.active.forEach((p, i) => {
       const extra = p.tasksDone ? `, ${p.tasksDone} topshiriq` : '';
-      lines.push(`${i + 1}. ${escapeHtml(short(p.fullName))} — <b>${p.appeals}</b> ta${extra} <i>(${escapeHtml(p.departmentName)})</i>`);
+      lines.push(`${i + 1}. ${escapeHtml(short(p.fullName))} — <b>${p.appeals}</b> ta${extra}`);
     });
 
     lines.push('', `⚠️ <b>Bugun ish yozmaganlar: ${r.idle.length}</b>`);
     if (!r.idle.length) lines.push('Hamma ish yozgan 👏');
-    for (const [dept, people] of groupBy(r.idle, (p) => p.departmentName)) {
-      const list = people.map((p) => escapeHtml(short(p.fullName)) + (p.tasksDone ? ` (${p.tasksDone} topshiriq bajardi)` : '')).join(', ');
-      lines.push(`<b>${escapeHtml(dept)}:</b> ${list}`);
-    }
+    r.idle.forEach((p, i) => lines.push(`${i + 1}. ${escapeHtml(short(p.fullName))}${p.tasksDone ? ` (${p.tasksDone} topshiriq bajardi)` : ''}`));
 
     if (r.onVacation.length) {
       lines.push('', `🌴 <b>Ta'tilda: ${r.onVacation.length}</b>`);
-      lines.push(r.onVacation.map((p) => `${escapeHtml(short(p.fullName))} (${shortDate(p.until)} gacha)`).join(', '));
+      r.onVacation.forEach((p, i) => lines.push(`${i + 1}. ${escapeHtml(short(p.fullName))} (${shortDate(p.until)} gacha)`));
     }
 
     return chunk(lines, MESSAGE_LIMIT);
@@ -179,12 +185,6 @@ export class DailyReportService {
     if (!user?.telegramId) throw AppError.badRequest('Profilingizga Telegram ID kiritilmagan');
     for (const m of this.format(await this.build())) await this.sender.send(user.telegramId, m);
   }
-}
-
-function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {
-  const map = new Map<string, T[]>();
-  for (const item of items) map.set(key(item), [...(map.get(key(item)) ?? []), item]);
-  return map;
 }
 
 /** Qatorlarni buzmasdan limitgacha bo'lib chiqadi */
