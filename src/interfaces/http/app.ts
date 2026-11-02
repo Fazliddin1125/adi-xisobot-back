@@ -70,6 +70,7 @@ export function createApp(c: Container, corsOrigin?: string) {
   api.get('/penalties/me', auth, c.penaltyController.mine);
   api.get('/reports/penalties', auth, managers, c.penaltyController.totals);
   api.delete('/penalties/:id', auth, managers, c.penaltyController.remove);
+  api.post('/reports/remind', auth, managers, c.penaltyController.remind);
   api.get('/reports/daily', auth, managers, c.dailyReportController.preview);
 
   // Superadmin: foydalanuvchilar, bo'limlar, sozlamalar
@@ -84,6 +85,7 @@ export function createApp(c: Container, corsOrigin?: string) {
   admin.delete('/departments/:id', c.departmentController.remove);
   admin.patch('/settings', c.settingsController.update);
   admin.post('/daily-report/test', c.dailyReportController.sendTest);
+  admin.get('/deliveries', c.deliveryController.list);
   api.use('/admin', admin);
 
   app.use('/api', api);

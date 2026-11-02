@@ -14,6 +14,9 @@ import { DailyReportController } from './interfaces/http/controllers/DailyReport
 import { DisciplineService } from './application/services/DisciplineService.js';
 import { PenaltyController } from './interfaces/http/controllers/PenaltyController.js';
 import { MongoPenaltyRepository } from './infrastructure/repositories/MongoPenaltyRepository.js';
+import { MongoDeliveryLogRepository } from './infrastructure/repositories/MongoDeliveryLogRepository.js';
+import { BotDeliveryService } from './application/services/BotDeliveryService.js';
+import { DeliveryController } from './interfaces/http/controllers/DeliveryController.js';
 import { MongoQuarterlyReportRepository } from './infrastructure/repositories/MongoQuarterlyReportRepository.js';
 import { ClaudeReportWriter } from './infrastructure/ai/ClaudeReportWriter.js';
 import { DraftReportWriter } from './infrastructure/ai/DraftReportWriter.js';
@@ -63,8 +66,9 @@ export function buildContainer() {
     settingsRepo,
   );
 
-  const dailyReportService = new DailyReportService(appealRepo, taskRepo, userRepo, departmentRepo, settingsRepo, sender);
-  const disciplineService = new DisciplineService(appealRepo, new MongoPenaltyRepository(), userRepo, settingsRepo, sender);
+  const botDelivery = new BotDeliveryService(sender, new MongoDeliveryLogRepository());
+  const dailyReportService = new DailyReportService(appealRepo, taskRepo, userRepo, departmentRepo, settingsRepo, sender, botDelivery);
+  const disciplineService = new DisciplineService(appealRepo, new MongoPenaltyRepository(), userRepo, settingsRepo, botDelivery);
 
   const authService = new AuthService(userRepo, hasher, tokens, new MemoryLoginThrottle());
   const userService = new UserService(userRepo, appealRepo, taskRepo, departmentRepo, hasher);
@@ -92,6 +96,7 @@ export function buildContainer() {
     dailyReportService,
     disciplineService,
     penaltyController: new PenaltyController(disciplineService),
+    deliveryController: new DeliveryController(botDelivery),
     reportWriter,
   };
 }

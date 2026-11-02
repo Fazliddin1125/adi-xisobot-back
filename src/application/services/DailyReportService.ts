@@ -8,6 +8,7 @@ import type { TaskRepository } from '../../domain/repositories/TaskRepository.js
 import type { UserRepository } from '../../domain/repositories/UserRepository.js';
 import { dayKey, dayRange } from '../../shared/time.js';
 import type { MessageSender } from '../ports/MessageSender.js';
+import type { BotDeliveryService } from './BotDeliveryService.js';
 
 /** "Ish yozganlar" ro'yxatiga kiradigan rollar (markaz boshlig'i va superadmin kirmaydi) */
 const STAFF_ROLES: Role[] = ['xodim', 'bolim_boshligi'];
@@ -54,6 +55,7 @@ export class DailyReportService {
     private readonly departments: DepartmentRepository,
     private readonly settings: SettingsRepository,
     private readonly sender: MessageSender,
+    private readonly delivery: BotDeliveryService,
   ) {}
 
   async build(date = new Date()): Promise<DailyReport> {
@@ -148,20 +150,11 @@ export class DailyReportService {
   }
 
   /** Bo'lim boshliqlariga yuborish. Natija: nechta kishiga yetib bordi */
-  async sendToHeads(date = new Date()): Promise<number> {
-    if (!this.sender.enabled) return 0;
+  async sendToHeads(date = new Date()): Promise<void> {
+    if (!this.delivery.enabled) return;
     const messages = this.format(await this.build(date));
-    const heads = (await this.users.findAll()).filter((u) => RECIPIENT_ROLES.includes(u.role) && u.telegramId);
-    let delivered = 0;
-    for (const u of heads) {
-      try {
-        for (const m of messages) await this.sender.send(u.telegramId!, m);
-        delivered++;
-      } catch (err) {
-        console.error(`Kunlik hisobot yuborilmadi (${u.username}):`, (err as Error).message);
-      }
-    }
-    return delivered;
+    const heads = (await this.users.findAll()).filter((u) => RECIPIENT_ROLES.includes(u.role));
+    await this.delivery.sendBatch('kunlik_hisobot', `Kunlik hisobot · ${shortDate(dayKey(date))}`, heads, messages);
   }
 
   /**
@@ -174,8 +167,7 @@ export class DailyReportService {
     if (hour < 18 || hour >= 21 || tashkent.getUTCDay() === 0) return;
     if (!this.sender.enabled || !(await this.settings.get()).dailyReportEnabled) return;
     if (!(await this.settings.claimDailyReport(dayKey(now)))) return;
-    const delivered = await this.sendToHeads(now);
-    console.log(`Kunlik hisobot yuborildi: ${delivered} ta bo'lim boshlig'iga`);
+    await this.sendToHeads(now);
   }
 
   /** Superadmin: hozirgi holat bo'yicha hisobotni o'ziga sinov uchun yuborish */

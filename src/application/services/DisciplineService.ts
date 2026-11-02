@@ -6,7 +6,8 @@ import type { PenaltyRepository } from '../../domain/repositories/PenaltyReposit
 import type { SettingsRepository } from '../../domain/repositories/SettingsRepository.js';
 import type { UserRepository } from '../../domain/repositories/UserRepository.js';
 import { dayKey, dayRange } from '../../shared/time.js';
-import type { MessageSender } from '../ports/MessageSender.js';
+import type { DeliveryLog } from '../../domain/entities/Delivery.js';
+import type { BotDeliveryService } from './BotDeliveryService.js';
 
 /** Har kuni ish yozishi shart bo'lganlar (bo'lim boshliqlari va undan yuqorilar — yo'q) */
 const REQUIRED_ROLES: Role[] = ['xodim'];
@@ -16,6 +17,11 @@ const REMINDER_JOB = 'reminder';
 const PENALTY_JOB = 'penalty';
 
 const shortDate = (key: string) => key.split('-').reverse().join('.');
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+/** Bot "write" tugmasini ushlaydi va ish yozishni so'raydi */
+const WRITE_BUTTON = [[{ text: '✍️ Ish yozish', callback_data: 'write' }]];
+/** Jarima eslatmasi matni — har bir eslatmada */
+const PENALTY_NOTE = `00:00 gacha ish yozilmasa, <b>${PENALTY_POINTS} jarima balli</b> beriladi.`;
 
 /** Toshkent devor soati: soat, daqiqa, hafta kuni (0 — yakshanba) */
 function clock(now: Date) {
@@ -41,7 +47,7 @@ export class DisciplineService {
     private readonly penalties: PenaltyRepository,
     private readonly users: UserRepository,
     private readonly settings: SettingsRepository,
-    private readonly sender: MessageSender,
+    private readonly delivery: BotDeliveryService,
   ) {}
 
   /** Rejalashtiruvchi har daqiqa chaqiradi */
@@ -66,21 +72,14 @@ export class DisciplineService {
     const idle = await this.idleOn(now);
     // Yakshanba ham "bajarildi" deb belgilanadi — jarima bosqichi faqat eslatma bo'lgan kunlar uchun ishlaydi
     if (!(await this.settings.claimJob(REMINDER_JOB, dayKey(now)))) return;
-    if (!this.sender.enabled || clock(now).weekday === 0) return;
+    if (!this.delivery.enabled || clock(now).weekday === 0) return;
     const html = [
       '⏰ <b>Bugun hali ish yozmadingiz</b>',
       '',
-      'Bugun qilgan ishlaringizni <b>soat 00:00 gacha</b> yozing — shu botga oddiy xabar qilib yuborsangiz ham bo‘ladi.',
-      `Yozilmasa, ertaga <b>${PENALTY_POINTS} jarima balli</b> beriladi.`,
+      'Bugun qilgan ishlaringizni <b>soat 00:00 gacha</b> yozing — pastdagi tugmani bosing yoki shu botga oddiy xabar qilib yuboring.',
+      PENALTY_NOTE,
     ].join('\n');
-    let sent = 0;
-    for (const u of idle.filter((u) => u.telegramId)) {
-      await this.sender
-        .send(u.telegramId!, html)
-        .then(() => sent++)
-        .catch((err) => console.error(`Eslatma yuborilmadi (${u.username}):`, (err as Error).message));
-    }
-    console.log(`Ish yozish eslatmasi: ${sent} ta xodimga yuborildi`);
+    await this.delivery.sendBatch('eslatma', `18:00 eslatma · ${shortDate(dayKey(now))}`, idle, html, { buttons: WRITE_BUTTON });
   }
 
   /** Kecha eslatma yuborilgan bo'lsa (ya'ni 18:00 bosqichi ishlagan) — hali ham yozmaganlarga jarima */
@@ -99,23 +98,66 @@ export class DisciplineService {
 
   private async notifyPenalties(): Promise<void> {
     const pending = await this.penalties.listUnnotified();
-    if (!pending.length) return;
+    if (!pending.length || !this.delivery.enabled) return;
+    // Faqat shu chaqiruv belgilagan jarimalar (ikki marta yubormaslik uchun)
+    const mine = [];
+    for (const p of pending) if (await this.penalties.markNotified(p.id)) mine.push(p);
+    if (!mine.length) return;
     const totals = await this.penalties.totals();
-    const users = new Map((await this.users.findByIds([...new Set(pending.map((p) => p.userId))])).map((u) => [u.id, u]));
-    for (const p of pending) {
-      if (!(await this.penalties.markNotified(p.id))) continue;
-      const u = users.get(p.userId);
-      if (!this.sender.enabled || !u?.telegramId) continue;
-      const html = [
-        `⚠️ <b>${shortDate(p.day)} kuni ish yozilmadi</b>`,
+    const days = new Map<string, string[]>();
+    for (const p of mine) days.set(p.userId, [...(days.get(p.userId) ?? []), shortDate(p.day)]);
+    const users = await this.users.findByIds([...days.keys()]);
+    const message = (u: User) => {
+      const list = days.get(u.id)!;
+      return [
+        `⚠️ <b>${list.join(', ')} kuni ish yozilmadi</b>`,
         '',
-        `Sizga <b>${p.points} jarima balli</b> berildi.`,
-        `Jami jarima ballaringiz: <b>${totals[p.userId] ?? p.points}</b>`,
+        `Sizga <b>${list.length * PENALTY_POINTS} jarima balli</b> berildi.`,
+        `Jami jarima ballaringiz: <b>${totals[u.id] ?? list.length * PENALTY_POINTS}</b>`,
         '',
         'Har kuni qilgan ishlaringizni yozib boring — saytda yoki shu botga xabar qilib.',
       ].join('\n');
-      await this.sender.send(u.telegramId, html).catch((err) => console.error(`Jarima xabari yuborilmadi (${u.username}):`, (err as Error).message));
-    }
+    };
+    await this.delivery.sendBatch('jarima', `Jarima xabari · ${[...new Set(mine.map((p) => shortDate(p.day)))].join(', ')}`, users, message, {
+      buttons: WRITE_BUTTON,
+    });
+  }
+
+  /**
+   * Rahbar saytdan: "qilgan ishlaringizni botga yozing" eslatmasi.
+   * onlyIdle — faqat bugun hali ish yozmaganlarga. Faqat xodimlarga (bo'lim boshliqlariga emas).
+   * Natija: kimga yetib bordi, kimga bormadi (sababi bilan)
+   */
+  async broadcastReminder(actorId: string, onlyIdle: boolean): Promise<DeliveryLog | null> {
+    if (!this.delivery.enabled) throw AppError.badRequest('Telegram bot sozlanmagan (TELEGRAM_BOT_TOKEN yo\'q)');
+    const now = new Date();
+    const day = dayKey(now);
+    const [users, counts, actor] = await Promise.all([
+      this.users.findAll(),
+      this.appeals.countsPerStaff(dayRange(now)),
+      this.users.findById(actorId),
+    ]);
+    const wrote = new Set(counts.filter((c) => c.total > 0).map((c) => c.staffId));
+    const targets = users.filter(
+      (u) => REQUIRED_ROLES.includes(u.role) && u.id !== actorId && !isOnVacation(u, day) && (!onlyIdle || !wrote.has(u.id)),
+    );
+    const html = [
+      '📣 <b>Eslatma</b>',
+      '',
+      onlyIdle ? 'Bugun hali ish yozmadingiz. Qilgan ishlaringizni yozib qo‘ying.' : 'Bugun qilgan ishlaringizni yozib borishni unutmang.',
+      'Pastdagi tugmani bosing yoki ishni shu botga oddiy xabar qilib yuboring.',
+      PENALTY_NOTE,
+      actor ? `\n👤 ${escapeHtml(actor.fullName)}` : null,
+    ]
+      .filter((l) => l !== null)
+      .join('\n');
+    return this.delivery.sendBatch(
+      'qolda_eslatma',
+      `Qo‘lda eslatma (${onlyIdle ? 'ish yozmaganlarga' : 'hammaga'}) · ${shortDate(day)}`,
+      targets,
+      html,
+      { buttons: WRITE_BUTTON, byName: actor?.fullName },
+    );
   }
 
   async summary(userId: string): Promise<PenaltySummary> {

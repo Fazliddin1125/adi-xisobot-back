@@ -42,6 +42,21 @@ const CHANNEL_BUTTONS: Button[] = [
   { text: 'Telegram', callback_data: 'ch:telegram' },
 ];
 const CANCEL: Button = { text: '❌ Bekor qilish', callback_data: 'cancel' };
+const WRITE_LABEL = '✍️ Ish yozish';
+const TODAY_LABEL = '📋 Bugungi ishlarim';
+/** Pastdagi doimiy menyu (ulangan foydalanuvchilar uchun) */
+const MAIN_KEYBOARD = {
+  keyboard: [[{ text: WRITE_LABEL }, { text: TODAY_LABEL }]],
+  resize_keyboard: true,
+  is_persistent: true,
+  input_field_placeholder: 'Qilgan ishingizni yozing…',
+};
+const WRITE_PROMPT = [
+  '✍️ <b>Qilgan ishingizni bitta xabar qilib yozing</b>',
+  '',
+  '1-qator — ish nomi, keyingi qatorlar — izoh (ixtiyoriy).',
+  'Masalan: <code>3-bino, 2-qavat — Wi-Fi tiklandi</code>',
+].join('\n');
 
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const actorOf = (u: User): Actor => ({ id: u.id, role: u.role, departmentId: u.departmentId });
@@ -69,6 +84,16 @@ export class TelegramIdBot {
   start(): void {
     if (this.running) return;
     this.running = true;
+    // Telegram'dagi "Menu" tugmasida ko'rinadigan buyruqlar
+    void this.api
+      .call('setMyCommands', {
+        commands: [
+          { command: 'start', description: 'Bosh menyu va qo‘llanma' },
+          { command: 'bugun', description: 'Bugun yozgan ishlarim' },
+          { command: 'yordam', description: 'Ish qanday yoziladi' },
+        ],
+      })
+      .catch((err) => console.error('setMyCommands xatosi:', (err as Error).message));
     void this.loop();
   }
 
@@ -104,7 +129,8 @@ export class TelegramIdBot {
     const text = msg.text?.trim() ?? '';
 
     if (!user || text.startsWith('/start') || text.startsWith('/yordam') || !text) return this.greet(chatId, user, msg.from?.first_name);
-    if (text.startsWith('/bugun')) return this.today(chatId, user);
+    if (text === WRITE_LABEL) return this.sendMarkup(chatId, WRITE_PROMPT, MAIN_KEYBOARD);
+    if (text.startsWith('/bugun') || text === TODAY_LABEL) return this.today(chatId, user);
     if (text.startsWith('/')) return this.send(chatId, "Bunday buyruq yo'q. /bugun — bugungi ishlar, /yordam — qo'llanma.");
 
     const [first, ...rest] = text.split('\n');
@@ -158,6 +184,8 @@ export class TelegramIdBot {
     if (!user) return;
     const [kind, value] = q.data.split(':');
 
+    if (kind === 'write') return this.sendMarkup(chatId, WRITE_PROMPT, MAIN_KEYBOARD);
+
     if (kind === 'del') {
       try {
         await this.appeals.delete(actorOf(user), value);
@@ -184,9 +212,9 @@ export class TelegramIdBot {
 
   private async today(chatId: number, user: User): Promise<void> {
     const list = await this.appeals.list(actorOf(user), { period: 'today', staffId: user.id });
-    if (!list.length) return this.send(chatId, 'Bugun hali ish yozmadingiz. Qilgan ishingizni shu yerga yozib yuboring.');
+    if (!list.length) return this.sendMarkup(chatId, 'Bugun hali ish yozmadingiz. Qilgan ishingizni shu yerga yozib yuboring.', MAIN_KEYBOARD);
     const lines = list.map((a, i) => `${i + 1}. ${escapeHtml(a.title)}`);
-    await this.send(chatId, [`📋 <b>Bugungi ishlaringiz: ${list.length} ta</b>`, '', ...lines].join('\n').slice(0, 4000));
+    await this.sendMarkup(chatId, [`📋 <b>Bugungi ishlaringiz: ${list.length} ta</b>`, '', ...lines].join('\n').slice(0, 4000), MAIN_KEYBOARD);
   }
 
   /** Kontakt matnidan Telegram username (masalan "Fazliddinga (@fazliddin_bakhrom)" → "fazliddin_bakhrom") */
@@ -205,11 +233,11 @@ export class TelegramIdBot {
           '',
           intro,
           '',
-          '✍️ <b>Ish yozish:</b> qilgan ishingizni shu yerga oddiy xabar qilib yuboring.',
+          `✍️ <b>Ish yozish:</b> pastdagi «${WRITE_LABEL}» tugmasini bosing yoki ishni shu yerga oddiy xabar qilib yuboring.`,
           '<i>1-qator — ish nomi, keyingi qatorlar — izoh (ixtiyoriy).</i>',
           'Masalan: <code>3-bino, 2-qavat — Wi-Fi tiklandi</code>',
           '',
-          '📋 /bugun — bugun yozgan ishlaringiz',
+          `📋 «${TODAY_LABEL}» yoki /bugun — bugun yozgan ishlaringiz`,
           '⏰ Soat 18:00 gacha ish yozilmasa eslataman. 00:00 gacha yozilmasa — -1 jarima balli.',
           '',
           `🆔 Telegram ID raqamingiz: <code>${chatId}</code>`,
@@ -228,9 +256,18 @@ export class TelegramIdBot {
             : `👤 Bot ishlay boshlashi uchun shu raqamni ${escapeHtml(this.supportContact)} yuboring.`,
         ];
 
-    // Ulanmagan odamga — kontakt bilan chatni bir bosishda ochadigan tugma
-    const buttons = username && !user ? [[{ text: `✍️ @${username} ga yozish`, url: `https://t.me/${username}` }]] : [];
-    await this.sendOrEdit(chatId, text.filter((l) => l !== null).join('\n'), buttons);
+    const html = text.filter((l) => l !== null).join('\n');
+    // Ulangan: pastda doimiy "Ish yozish" menyusi. Ulanmagan: kontakt bilan chatni ochadigan tugma
+    if (user) return this.sendMarkup(chatId, html, MAIN_KEYBOARD);
+    const buttons = username ? [[{ text: `✍️ @${username} ga yozish`, url: `https://t.me/${username}` }]] : [];
+    await this.sendOrEdit(chatId, html, buttons);
+  }
+
+  /** Pastki doimiy menyu (reply keyboard) bilan yuborish */
+  private async sendMarkup(chatId: number, html: string, markup: object): Promise<void> {
+    await this.api
+      .call('sendMessage', { chat_id: chatId, text: html, parse_mode: 'HTML', reply_markup: markup })
+      .catch((err) => console.error('Telegram javob xatosi:', (err as Error).message));
   }
 
   private send(chatId: number, html: string): Promise<void> {

@@ -20,6 +20,12 @@ export class PenaltyController {
     res.json(await this.discipline.totals());
   };
 
+  /** Rahbar: hammaga (yoki faqat bugun yozmaganlarga) "ishlarni botga yozing" eslatmasi */
+  remind = async (req: Request, res: Response) => {
+    const onlyIdle = req.body?.onlyIdle === true;
+    res.json(await this.discipline.broadcastReminder(actorOf(req).id, onlyIdle));
+  };
+
   remove = async (req: Request, res: Response) => {
     await this.discipline.remove(params(req, idParamSchema).id);
     res.status(204).end();
