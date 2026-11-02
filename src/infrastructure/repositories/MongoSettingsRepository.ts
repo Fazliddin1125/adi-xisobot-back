@@ -12,6 +12,7 @@ export class MongoSettingsRepository implements SettingsRepository {
       channelEnabled: doc.channelEnabled ?? DEFAULT_SETTINGS.channelEnabled,
       reportGenerationEnabled: doc.reportGenerationEnabled ?? DEFAULT_SETTINGS.reportGenerationEnabled,
       dailyReportEnabled: doc.dailyReportEnabled ?? DEFAULT_SETTINGS.dailyReportEnabled,
+      penaltiesEnabled: doc.penaltiesEnabled ?? DEFAULT_SETTINGS.penaltiesEnabled,
     };
   }
 
@@ -22,6 +23,19 @@ export class MongoSettingsRepository implements SettingsRepository {
     if (await SettingsModel.exists({ _id: 'global' })) return false;
     await SettingsModel.updateOne({ _id: 'global' }, { $setOnInsert: { dailyReportLastDay: day } }, { upsert: true });
     return true;
+  }
+
+  async claimJob(key: string, day: string): Promise<boolean> {
+    const field = `jobs.${key}`;
+    const res = await SettingsModel.updateOne({ _id: 'global', [field]: { $ne: day } }, { $set: { [field]: day } });
+    if (res.modifiedCount === 1) return true;
+    if (await SettingsModel.exists({ _id: 'global' })) return false;
+    await SettingsModel.updateOne({ _id: 'global' }, { $setOnInsert: { [field]: day } }, { upsert: true });
+    return true;
+  }
+
+  async jobDone(key: string, day: string): Promise<boolean> {
+    return !!(await SettingsModel.exists({ _id: 'global', [`jobs.${key}`]: day }));
   }
 
   async update(changes: Partial<Settings>): Promise<Settings> {

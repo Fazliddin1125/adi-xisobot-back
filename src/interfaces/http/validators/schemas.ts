@@ -59,6 +59,7 @@ export const settingsSchema = z.object({
   channelEnabled: z.boolean().optional(),
   reportGenerationEnabled: z.boolean().optional(),
   dailyReportEnabled: z.boolean().optional(),
+  penaltiesEnabled: z.boolean().optional(),
 });
 
 export const createAppealSchema = z.object({

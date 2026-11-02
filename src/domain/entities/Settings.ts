@@ -10,6 +10,8 @@ export interface Settings {
   reportGenerationEnabled: boolean;
   /** Har kuni 18:00 da bo'lim boshliqlariga Telegram orqali kunlik hisobot */
   dailyReportEnabled: boolean;
+  /** 18:00 da ish yozmaganlarga eslatma, 00:00 gacha yozmasa -1 jarima balli */
+  penaltiesEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -18,4 +20,5 @@ export const DEFAULT_SETTINGS: Settings = {
   channelEnabled: true,
   reportGenerationEnabled: true,
   dailyReportEnabled: true,
+  penaltiesEnabled: true,
 };

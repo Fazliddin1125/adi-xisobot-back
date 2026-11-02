@@ -11,6 +11,9 @@ import { NotificationService } from './application/services/NotificationService.
 import { QuarterlyReportService } from './application/services/QuarterlyReportService.js';
 import { DailyReportService } from './application/services/DailyReportService.js';
 import { DailyReportController } from './interfaces/http/controllers/DailyReportController.js';
+import { DisciplineService } from './application/services/DisciplineService.js';
+import { PenaltyController } from './interfaces/http/controllers/PenaltyController.js';
+import { MongoPenaltyRepository } from './infrastructure/repositories/MongoPenaltyRepository.js';
 import { MongoQuarterlyReportRepository } from './infrastructure/repositories/MongoQuarterlyReportRepository.js';
 import { ClaudeReportWriter } from './infrastructure/ai/ClaudeReportWriter.js';
 import { DraftReportWriter } from './infrastructure/ai/DraftReportWriter.js';
@@ -61,6 +64,7 @@ export function buildContainer() {
   );
 
   const dailyReportService = new DailyReportService(appealRepo, taskRepo, userRepo, departmentRepo, settingsRepo, sender);
+  const disciplineService = new DisciplineService(appealRepo, new MongoPenaltyRepository(), userRepo, settingsRepo, sender);
 
   const authService = new AuthService(userRepo, hasher, tokens, new MemoryLoginThrottle());
   const userService = new UserService(userRepo, appealRepo, taskRepo, departmentRepo, hasher);
@@ -78,7 +82,7 @@ export function buildContainer() {
     userController: new UserController(userService, notificationService),
     telegramIdBot:
       telegramApi && env.telegram.idBot
-        ? new TelegramIdBot(telegramApi, async (chatId) => (await userRepo.findByTelegramId(chatId))?.fullName ?? null, env.telegram.supportContact)
+        ? new TelegramIdBot(telegramApi, userRepo, appealService, settingsRepo, env.telegram.supportContact)
         : null,
     taskController: new TaskController(new TaskService(taskRepo, userRepo, notificationService)),
     departmentController: new DepartmentController(new DepartmentService(departmentRepo, userRepo)),
@@ -86,6 +90,8 @@ export function buildContainer() {
     quarterlyReportController: new QuarterlyReportController(quarterlyReportService),
     dailyReportController: new DailyReportController(dailyReportService),
     dailyReportService,
+    disciplineService,
+    penaltyController: new PenaltyController(disciplineService),
     reportWriter,
   };
 }

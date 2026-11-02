@@ -66,6 +66,10 @@ export function createApp(c: Container, corsOrigin?: string) {
   api.get('/users', auth, managers, c.userController.list);
   api.get('/users/:id', auth, managers, c.userController.get);
   api.put('/users/:id/vacation', auth, managers, c.userController.setVacation);
+  api.get('/users/:id/penalties', auth, managers, c.penaltyController.ofUser);
+  api.get('/penalties/me', auth, c.penaltyController.mine);
+  api.get('/reports/penalties', auth, managers, c.penaltyController.totals);
+  api.delete('/penalties/:id', auth, managers, c.penaltyController.remove);
   api.get('/reports/daily', auth, managers, c.dailyReportController.preview);
 
   // Superadmin: foydalanuvchilar, bo'limlar, sozlamalar

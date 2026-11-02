@@ -32,7 +32,11 @@ async function bootstrap() {
   );
 
   // Kunlik hisobot: har daqiqa tekshiriladi, 18:00 (Toshkent) da bir marta yuboriladi
-  const dailyTick = () => container.dailyReportService.tick().catch((err) => console.error('Kunlik hisobot xatosi:', (err as Error).message));
+  const dailyTick = () => {
+    container.dailyReportService.tick().catch((err) => console.error('Kunlik hisobot xatosi:', (err as Error).message));
+    // Ish yozish eslatmasi (18:00), jarima (00:00), jarima xabari (08:30)
+    container.disciplineService.tick().catch((err) => console.error('Intizom xatosi:', (err as Error).message));
+  };
   setInterval(dailyTick, 60_000).unref();
 
   createApp(container, env.corsOrigin).listen(env.port, () => {
