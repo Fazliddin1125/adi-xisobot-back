@@ -46,12 +46,13 @@ const WRITE_LABEL = '✍️ Ish yozish';
 const TODAY_LABEL = '📋 Bugungi ishlarim';
 /**
  * Pastdagi doimiy menyu (ulangan foydalanuvchilar uchun).
- * Sayt HTTPS bo'lsa «Ish yozish» bot ichida saytni (WebApp) ochadi, aks holda ishni xabar qilib so'raydi.
+ * Diqqat: Telegram pastki menyu (reply keyboard) tugmasidan ochilgan WebApp'ga foydalanuvchi ma'lumotini
+ * (initData) bermaydi — sayt kim kirganini bilolmaydi. Shuning uchun «Ish yozish» oddiy tugma:
+ * bosilganda bot xabar ostidagi (inline) WebApp tugmasini yuboradi — u initData bilan ochiladi.
  */
-function mainKeyboard(appUrl?: string) {
-  const write = appUrl?.startsWith('https://') ? { text: WRITE_LABEL, web_app: { url: `${appUrl}/tg/ish` } } : { text: WRITE_LABEL };
+function mainKeyboard() {
   return {
-    keyboard: [[write, { text: TODAY_LABEL }]],
+    keyboard: [[{ text: WRITE_LABEL }, { text: TODAY_LABEL }]],
     resize_keyboard: true,
     is_persistent: true,
     input_field_placeholder: 'Qilgan ishingizni yozing…',
@@ -90,7 +91,21 @@ export class TelegramIdBot {
   ) {}
 
   private get keyboard() {
-    return mainKeyboard(this.appUrl);
+    return mainKeyboard();
+  }
+
+  private get webAppReady(): boolean {
+    return !!this.appUrl?.startsWith('https://');
+  }
+
+  /** «Ish yozish»: sayt HTTPS bo'lsa — formani ochadigan tugma, aks holda ishni xabar qilib so'raymiz */
+  private async promptWrite(chatId: number): Promise<void> {
+    if (!this.webAppReady) return this.sendMarkup(chatId, WRITE_PROMPT, this.keyboard);
+    await this.sendMarkup(
+      chatId,
+      '✍️ <b>Ish yozish</b>\n\nPastdagi tugmani bosing — forma bot ichida ochiladi. Yoki ishni shu yerga oddiy xabar qilib yuboring.',
+      { inline_keyboard: [[{ text: '📝 Formani ochish', web_app: { url: `${this.appUrl}/tg/ish` } }]] },
+    );
   }
 
   start(): void {
@@ -106,10 +121,10 @@ export class TelegramIdBot {
         ],
       })
       .catch((err) => console.error('setMyCommands xatosi:', (err as Error).message));
-    // Kiritish maydoni yonidagi tugma — saytni bot ichida (WebApp) ochadi
+    // Kiritish maydoni yonidagi tugma — ish yozish formasini bot ichida (WebApp) ochadi; u yerdan to'liq saytga o'tiladi
     if (this.appUrl?.startsWith('https://')) {
       void this.api
-        .call('setChatMenuButton', { menu_button: { type: 'web_app', text: 'Sayt', web_app: { url: this.appUrl } } })
+        .call('setChatMenuButton', { menu_button: { type: 'web_app', text: 'Ish yozish', web_app: { url: `${this.appUrl}/tg/ish` } } })
         .catch((err) => console.error('setChatMenuButton xatosi:', (err as Error).message));
     }
     void this.loop();
@@ -147,7 +162,7 @@ export class TelegramIdBot {
     const text = msg.text?.trim() ?? '';
 
     if (!user || text.startsWith('/start') || text.startsWith('/yordam') || !text) return this.greet(chatId, user, msg.from?.first_name);
-    if (text === WRITE_LABEL) return this.sendMarkup(chatId, WRITE_PROMPT, this.keyboard);
+    if (text === WRITE_LABEL) return this.promptWrite(chatId);
     if (text.startsWith('/bugun') || text === TODAY_LABEL) return this.today(chatId, user);
     if (text.startsWith('/')) return this.send(chatId, "Bunday buyruq yo'q. /bugun — bugungi ishlar, /yordam — qo'llanma.");
 
@@ -202,7 +217,7 @@ export class TelegramIdBot {
     if (!user) return;
     const [kind, value] = q.data.split(':');
 
-    if (kind === 'write') return this.sendMarkup(chatId, WRITE_PROMPT, this.keyboard);
+    if (kind === 'write') return this.promptWrite(chatId);
 
     if (kind === 'del') {
       try {
