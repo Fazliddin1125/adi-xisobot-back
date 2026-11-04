@@ -16,6 +16,8 @@ export interface Settings {
   reminderText: string;
   /** Qattiq eslatma matni (qo'lda yuboriladi) */
   strictReminderText: string;
+  /** Reyting xodimlarga ko'rinadimi. Rahbarlar har doim ko'radi */
+  ratingVisible: boolean;
 }
 
 export const DEFAULT_REMINDER_TEXT = [
@@ -42,4 +44,5 @@ export const DEFAULT_SETTINGS: Settings = {
   penaltiesEnabled: true,
   reminderText: DEFAULT_REMINDER_TEXT,
   strictReminderText: DEFAULT_STRICT_REMINDER_TEXT,
+  ratingVisible: true,
 };

@@ -15,6 +15,7 @@ export class MongoSettingsRepository implements SettingsRepository {
       penaltiesEnabled: doc.penaltiesEnabled ?? DEFAULT_SETTINGS.penaltiesEnabled,
       reminderText: doc.reminderText || DEFAULT_SETTINGS.reminderText,
       strictReminderText: doc.strictReminderText || DEFAULT_SETTINGS.strictReminderText,
+      ratingVisible: doc.ratingVisible ?? DEFAULT_SETTINGS.ratingVisible,
     };
   }
 

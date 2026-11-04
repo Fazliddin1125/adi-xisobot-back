@@ -19,6 +19,10 @@ export class StatsController {
     res.json(await this.stats.details(actorOf(req), query(req, periodQuerySchema)));
   };
 
+  rating = async (req: Request, res: Response) => {
+    res.json(await this.stats.rating(actorOf(req), query(req, periodQuerySchema)));
+  };
+
   perStaff = async (req: Request, res: Response) => {
     res.json(await this.stats.perStaff(query(req, periodQuerySchema)));
   };

@@ -1,9 +1,9 @@
 import type { DeliveryKind, DeliveryLog, DeliveryResult } from '../../domain/entities/Delivery.js';
 import type { User } from '../../domain/entities/User.js';
 import type { DeliveryLogRepository } from '../../domain/repositories/DeliveryLogRepository.js';
-import type { MessageSender } from '../ports/MessageSender.js';
+import type { InlineButton, MessageSender } from '../ports/MessageSender.js';
 
-type Buttons = Array<Array<{ text: string; callback_data: string }>>;
+type Buttons = InlineButton[][];
 
 /** Telegram xatosini odamcha sababga aylantiradi */
 export function deliveryReason(err: unknown): string {

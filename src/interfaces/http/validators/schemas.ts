@@ -27,6 +27,8 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Parolni kiriting').max(200),
 });
 
+export const telegramLoginSchema = z.object({ initData: z.string().min(10).max(4096) });
+
 export const changePasswordSchema = z.object({ currentPassword: z.string().min(1).max(200), newPassword: password });
 
 export const createUserSchema = z.object({
@@ -67,6 +69,7 @@ export const settingsSchema = z.object({
   reportGenerationEnabled: z.boolean().optional(),
   dailyReportEnabled: z.boolean().optional(),
   penaltiesEnabled: z.boolean().optional(),
+  ratingVisible: z.boolean().optional(),
   reminderText: z.string().trim().min(10, 'Eslatma matni juda qisqa').max(1500, 'Eslatma matni juda uzun').optional(),
   strictReminderText: z.string().trim().min(10, 'Qattiq eslatma matni juda qisqa').max(1500, 'Qattiq eslatma matni juda uzun').optional(),
 });

@@ -4,6 +4,7 @@ import type { UserRepository } from '../../domain/repositories/UserRepository.js
 import type { LoginThrottle } from '../ports/LoginThrottle.js';
 import type { PasswordHasher } from '../ports/PasswordHasher.js';
 import type { TokenService } from '../ports/TokenService.js';
+import type { TelegramAuthVerifier } from '../ports/TelegramAuthVerifier.js';
 
 const blockedMessage = (minutes: number) =>
   `Juda ko‘p noto‘g‘ri urinish. ${minutes} daqiqadan keyin qayta urinib ko‘ring.`;
@@ -17,6 +18,8 @@ export class AuthService {
     private readonly hasher: PasswordHasher,
     private readonly tokens: TokenService,
     private readonly throttle: LoginThrottle,
+    /** Bot tokeni bo'lmasa — Telegram orqali kirish o'chiq */
+    private readonly telegram?: TelegramAuthVerifier,
   ) {
     this.dummyHash = hasher.hash('timing-equalizer-not-a-password');
   }
@@ -34,6 +37,25 @@ export class AuthService {
     }
     this.throttle.reset(login);
     if (!isActive(user)) throw AppError.forbidden(user.status === 'paused' ? 'Hisobingiz vaqtincha to‘xtatilgan. Rahbaringizga murojaat qiling' : 'Login yoki parol noto\'g\'ri');
+    return { token: this.tokens.sign({ sub: user.id, role: user.role, ver: user.tokenVersion }), user: toPublicUser(user) };
+  }
+
+  /**
+   * Telegram WebApp (bot ichidagi sayt) orqali parolsiz kirish:
+   * initData Telegram imzosi bilan tekshiriladi, Telegram ID bo'yicha faol foydalanuvchi topiladi.
+   */
+  async loginTelegram(initData: string, ip: string): Promise<{ token: string; user: PublicUser }> {
+    if (!this.telegram) throw AppError.badRequest('Telegram orqali kirish sozlanmagan');
+    const key = 'telegram';
+    const blocked = this.throttle.blockedFor(key, ip);
+    if (blocked) throw AppError.tooManyRequests(blockedMessage(blocked));
+    const telegramId = this.telegram.verify(initData);
+    if (!telegramId) {
+      this.throttle.recordFailure(key, ip);
+      throw AppError.unauthorized('Telegram ma’lumotlari tasdiqlanmadi. Botni qayta oching');
+    }
+    const user = await this.users.findByTelegramId(telegramId);
+    if (!user) throw AppError.unauthorized(`Telegram hisobingiz saytga ulanmagan (ID: ${telegramId}). Rahbaringizga murojaat qiling`);
     return { token: this.tokens.sign({ sub: user.id, role: user.role, ver: user.tokenVersion }), user: toPublicUser(user) };
   }
 

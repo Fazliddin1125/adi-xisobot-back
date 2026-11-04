@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import type { AuthService } from '../../../application/services/AuthService.js';
 import { actorOf } from '../middlewares/auth.js';
 import { body } from '../middlewares/validate.js';
-import { changePasswordSchema, loginSchema } from '../validators/schemas.js';
+import { changePasswordSchema, loginSchema, telegramLoginSchema } from '../validators/schemas.js';
 
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
@@ -10,6 +10,10 @@ export class AuthController {
   login = async (req: Request, res: Response) => {
     const { username, password } = body(req, loginSchema);
     res.json(await this.auth.login(username, password, req.ip ?? 'unknown'));
+  };
+
+  telegram = async (req: Request, res: Response) => {
+    res.json(await this.auth.loginTelegram(body(req, telegramLoginSchema).initData, req.ip ?? 'unknown'));
   };
 
   me = async (req: Request, res: Response) => {

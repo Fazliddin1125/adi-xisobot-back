@@ -1,4 +1,7 @@
 import type { Actor } from '../Actor.js';
+import type { SettingsRepository } from '../../domain/repositories/SettingsRepository.js';
+import { AppError } from '../../domain/errors/AppError.js';
+import { can } from '../../domain/policies.js';
 import type { AppealBreakdown, AppealRepository } from '../../domain/repositories/AppealRepository.js';
 import type { UserRepository } from '../../domain/repositories/UserRepository.js';
 import type { DepartmentRepository } from '../../domain/repositories/DepartmentRepository.js';
@@ -38,6 +41,17 @@ export interface StaffStatsRow extends Counts {
   status: UserStatus;
 }
 
+export interface RatingRow {
+  staffId: string;
+  fullName: string;
+  departmentName?: string;
+  total: number;
+  rank: number;
+}
+
+/** Reytingga kiradiganlar */
+const RATED_ROLES: Role[] = ['xodim', 'bolim_boshligi'];
+
 export interface DepartmentStatsRow extends Counts {
   departmentId: string | null;
   name: string;
@@ -49,6 +63,7 @@ export class StatsService {
     private readonly appeals: AppealRepository,
     private readonly users: UserRepository,
     private readonly departments: DepartmentRepository,
+    private readonly settings: SettingsRepository,
   ) {}
 
   /** Bugun / shu hafta / shu oy — faqat o'zining murojaatlari */
@@ -78,6 +93,37 @@ export class StatsService {
       online: b.byChannel.telefon + b.byChannel.telegram,
       daily: eachDayKey(range).map((date) => ({ date, count: b.daily[date] ?? 0 })),
     };
+  }
+
+  /**
+   * Reyting: kim ko'p ish yozgan (faol xodimlar va bo'lim boshliqlari). Hamma ko'radi.
+   * Teng ishli xodimlar bir xil o'rinda (1, 2, 2, 4 …).
+   */
+  async rating(actor: Actor, query: StatsQuery): Promise<{ range: DateRange; rows: RatingRow[] }> {
+    if (!can.viewAll(actor.role) && !(await this.settings.get()).ratingVisible) {
+      throw AppError.forbidden('Reyting hozircha yopiq');
+    }
+    const range = rangeOf(query);
+    const [users, counts, departments] = await Promise.all([
+      this.users.findAll(),
+      this.appeals.countsPerStaff(range),
+      this.departments.findAll(),
+    ]);
+    const totals = new Map(counts.map((c) => [c.staffId, c.total]));
+    const deptNames = new Map(departments.map((d) => [d.id, d.name]));
+    const sorted = users
+      .filter((u) => RATED_ROLES.includes(u.role))
+      .map((u) => ({
+        staffId: u.id,
+        fullName: u.fullName,
+        departmentName: u.departmentId ? deptNames.get(u.departmentId) : undefined,
+        total: totals.get(u.id) ?? 0,
+      }))
+      .sort((a, b) => b.total - a.total || a.fullName.localeCompare(b.fullName));
+    const rows = sorted.map((r, i) => ({ ...r, rank: i > 0 && sorted[i - 1].total === r.total ? 0 : i + 1 }));
+    // Teng bo'lsa — oldingi o'rin
+    for (let i = 1; i < rows.length; i++) if (rows[i].rank === 0) rows[i].rank = rows[i - 1].rank;
+    return { range, rows };
   }
 
   /** Rahbarlar: xodimlar va bo'limlar kesimida (murojaati yo'qlar ham ko'rinadi) */

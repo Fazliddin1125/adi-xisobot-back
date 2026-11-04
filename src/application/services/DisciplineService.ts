@@ -8,6 +8,7 @@ import type { UserRepository } from '../../domain/repositories/UserRepository.js
 import { dayKey, dayRange } from '../../shared/time.js';
 import type { DeliveryLog } from '../../domain/entities/Delivery.js';
 import type { BotDeliveryService } from './BotDeliveryService.js';
+import { writeButton } from '../ports/MessageSender.js';
 
 /** Har kuni ish yozishi shart bo'lganlar (bo'lim boshliqlari va undan yuqorilar — yo'q) */
 const REQUIRED_ROLES: Role[] = ['xodim'];
@@ -18,8 +19,6 @@ const PENALTY_JOB = 'penalty';
 
 const shortDate = (key: string) => key.split('-').reverse().join('.');
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-/** Bot "write" tugmasini ushlaydi va ish yozishni so'raydi */
-const WRITE_BUTTON = [[{ text: '✍️ Ish yozish', callback_data: 'write' }]];
 export type ReminderKind = 'eslatma' | 'qattiq' | 'xabar';
 const HEADERS: Record<ReminderKind, string> = {
   eslatma: '📣 <b>Eslatma</b>',
@@ -58,7 +57,13 @@ export class DisciplineService {
     private readonly users: UserRepository,
     private readonly settings: SettingsRepository,
     private readonly delivery: BotDeliveryService,
+    /** Sayt manzili — "✍️ Ish yozish" tugmasi bot ichida saytni (WebApp) ochishi uchun */
+    private readonly appUrl?: string,
   ) {}
+
+  private get writeButton() {
+    return writeButton(this.appUrl);
+  }
 
   /** Rejalashtiruvchi har daqiqa chaqiradi */
   async tick(now = new Date()): Promise<void> {
@@ -85,7 +90,7 @@ export class DisciplineService {
     if (!this.delivery.enabled || clock(now).weekday === 0) return;
     const [{ reminderText }, totals] = await Promise.all([this.settings.get(), this.penalties.totals()]);
     const message = (u: User) => `⏰ <b>Bugun hali ish yozmadingiz</b>\n\n${fillTemplate(reminderText, u, totals[u.id] ?? 0)}`;
-    await this.delivery.sendBatch('eslatma', `18:00 eslatma · ${shortDate(dayKey(now))}`, idle, message, { buttons: WRITE_BUTTON });
+    await this.delivery.sendBatch('eslatma', `18:00 eslatma · ${shortDate(dayKey(now))}`, idle, message, { buttons: this.writeButton });
   }
 
   /** Kecha eslatma yuborilgan bo'lsa (ya'ni 18:00 bosqichi ishlagan) — hali ham yozmaganlarga jarima */
@@ -125,7 +130,7 @@ export class DisciplineService {
       ].join('\n');
     };
     await this.delivery.sendBatch('jarima', `Jarima xabari · ${[...new Set(mine.map((p) => shortDate(p.day)))].join(', ')}`, users, message, {
-      buttons: WRITE_BUTTON,
+      buttons: this.writeButton,
     });
   }
 
@@ -158,7 +163,7 @@ export class DisciplineService {
       `${label} (${onlyIdle ? 'ish yozmaganlarga' : 'hammaga'}) · ${shortDate(day)}`,
       targets,
       message,
-      { buttons: WRITE_BUTTON, byName: actor?.fullName },
+      { buttons: this.writeButton, byName: actor?.fullName },
     );
   }
 

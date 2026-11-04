@@ -29,6 +29,7 @@ export function createApp(c: Container, corsOrigin?: string) {
   });
 
   api.post('/auth/login', c.authController.login);
+  api.post('/auth/telegram', c.authController.telegram);
   api.get('/auth/me', auth, c.authController.me);
   api.patch('/auth/password', auth, c.authController.changePassword);
 
@@ -43,6 +44,7 @@ export function createApp(c: Container, corsOrigin?: string) {
 
   api.get('/stats/summary', auth, c.statsController.summary);
   api.get('/stats', auth, c.statsController.details);
+  api.get('/stats/rating', auth, c.statsController.rating);
 
   // Topshiriqlar: ko'rish/o'zgartirish huquqlari servis ichida tekshiriladi
   api.get('/tasks', auth, c.taskController.list);

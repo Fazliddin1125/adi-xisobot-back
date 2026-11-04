@@ -13,6 +13,7 @@ const settingsSchema = new Schema({
   penaltiesEnabled: { type: Boolean, default: true },
   reminderText: { type: String },
   strictReminderText: { type: String },
+  ratingVisible: { type: Boolean, default: true },
   /** Rejalashtirilgan ishlar: kalit → oxirgi bajarilgan kun ("YYYY-MM-DD") */
   jobs: { type: Map, of: String, default: {} },
 });

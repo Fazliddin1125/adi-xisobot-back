@@ -23,6 +23,7 @@ import { DraftReportWriter } from './infrastructure/ai/DraftReportWriter.js';
 import { DocxReportRenderer } from './infrastructure/export/DocxReportRenderer.js';
 import { QuarterlyReportController } from './interfaces/http/controllers/QuarterlyReportController.js';
 import { TelegramApi } from './infrastructure/telegram/TelegramApi.js';
+import { TelegramInitDataVerifier } from './infrastructure/telegram/TelegramInitDataVerifier.js';
 import { DisabledMessageSender, TelegramMessageSender } from './infrastructure/telegram/TelegramMessageSender.js';
 import { TelegramIdBot } from './interfaces/telegram/TelegramIdBot.js';
 import { MongoUserRepository } from './infrastructure/repositories/MongoUserRepository.js';
@@ -68,12 +69,18 @@ export function buildContainer() {
 
   const botDelivery = new BotDeliveryService(sender, new MongoDeliveryLogRepository());
   const dailyReportService = new DailyReportService(appealRepo, taskRepo, userRepo, departmentRepo, settingsRepo, sender, botDelivery);
-  const disciplineService = new DisciplineService(appealRepo, new MongoPenaltyRepository(), userRepo, settingsRepo, botDelivery);
+  const disciplineService = new DisciplineService(appealRepo, new MongoPenaltyRepository(), userRepo, settingsRepo, botDelivery, env.appUrl);
 
-  const authService = new AuthService(userRepo, hasher, tokens, new MemoryLoginThrottle());
+  const authService = new AuthService(
+    userRepo,
+    hasher,
+    tokens,
+    new MemoryLoginThrottle(),
+    env.telegram.botToken ? new TelegramInitDataVerifier(env.telegram.botToken) : undefined,
+  );
   const userService = new UserService(userRepo, appealRepo, taskRepo, departmentRepo, hasher);
   const appealService = new AppealService(appealRepo, userRepo, settingsRepo);
-  const statsService = new StatsService(appealRepo, userRepo, departmentRepo);
+  const statsService = new StatsService(appealRepo, userRepo, departmentRepo, settingsRepo);
   const exportService = new ExportService(appealRepo, userRepo, settingsRepo, statsService, new ExcelReportExporter());
 
   return {
@@ -86,7 +93,7 @@ export function buildContainer() {
     userController: new UserController(userService, notificationService),
     telegramIdBot:
       telegramApi && env.telegram.idBot
-        ? new TelegramIdBot(telegramApi, userRepo, appealService, settingsRepo, env.telegram.supportContact)
+        ? new TelegramIdBot(telegramApi, userRepo, appealService, settingsRepo, env.telegram.supportContact, env.appUrl)
         : null,
     taskController: new TaskController(new TaskService(taskRepo, userRepo, notificationService)),
     departmentController: new DepartmentController(new DepartmentService(departmentRepo, userRepo)),

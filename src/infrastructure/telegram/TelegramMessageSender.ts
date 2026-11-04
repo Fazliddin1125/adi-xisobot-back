@@ -1,11 +1,11 @@
-import type { MessageSender } from '../../application/ports/MessageSender.js';
+import type { InlineButton, MessageSender } from '../../application/ports/MessageSender.js';
 import type { TelegramApi } from './TelegramApi.js';
 
 export class TelegramMessageSender implements MessageSender {
   readonly enabled = true;
   constructor(private readonly api: TelegramApi) {}
 
-  async send(chatId: string, html: string, buttons?: Array<Array<{ text: string; callback_data: string }>>): Promise<void> {
+  async send(chatId: string, html: string, buttons?: InlineButton[][]): Promise<void> {
     await this.api.call('sendMessage', {
       chat_id: chatId,
       text: html,
