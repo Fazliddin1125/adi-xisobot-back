@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import { AppError } from '../../../domain/errors/AppError.js';
-import type { Role } from '../../../domain/entities/User.js';
+import { isActive, type Role } from '../../../domain/entities/User.js';
 import type { TokenService } from '../../../application/ports/TokenService.js';
 import type { UserRepository } from '../../../domain/repositories/UserRepository.js';
 import type { Actor } from '../../../application/Actor.js';
@@ -21,7 +21,7 @@ export function requireAuth(tokens: TokenService, users: UserRepository) {
     const payload = tokens.verify(token);
     // Rol/bo'lim o'zgargan yoki xodim o'chirilgan bo'lsa, bazadagi holat amal qiladi
     const user = await users.findById(payload.sub);
-    if (!user) throw AppError.unauthorized('Foydalanuvchi topilmadi');
+    if (!user || !isActive(user)) throw AppError.unauthorized('Hisobingiz faol emas');
     // Parol o'zgargandan keyin eski tokenlar ishlamaydi
     if (payload.ver !== user.tokenVersion) {
       throw AppError.unauthorized('Parol o‘zgartirilgan, qayta kiring');

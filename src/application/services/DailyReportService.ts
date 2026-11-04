@@ -1,6 +1,6 @@
 import { AppError } from '../../domain/errors/AppError.js';
 import type { Task, TaskStatus } from '../../domain/entities/Task.js';
-import { isOnVacation, type Role, type User } from '../../domain/entities/User.js';
+import { isActive, isOnVacation, type Role, type User } from '../../domain/entities/User.js';
 import type { AppealRepository } from '../../domain/repositories/AppealRepository.js';
 import type { DepartmentRepository } from '../../domain/repositories/DepartmentRepository.js';
 import type { SettingsRepository } from '../../domain/repositories/SettingsRepository.js';
@@ -62,7 +62,8 @@ export class DailyReportService {
     const range = dayRange(date);
     const day = dayKey(date);
     const [users, departments, counts, created, completed] = await Promise.all([
-      this.users.findAll(),
+      // Ismlar uchun hammasi; ro'yxatlarda — faqat faollar (pauzadagi va o'chirilganlar hisobotda yo'q)
+      this.users.findAll({ includeInactive: true }),
       this.departments.findAll(),
       this.appeals.countsPerStaff(range),
       this.tasks.listCreated(range),
@@ -81,7 +82,7 @@ export class DailyReportService {
       appeals: appealsOf.get(u.id) ?? 0,
       tasksDone: doneBy.get(u.id) ?? 0,
     });
-    const staff = users.filter((u) => STAFF_ROLES.includes(u.role));
+    const staff = users.filter((u) => isActive(u) && STAFF_ROLES.includes(u.role));
     const working = staff.filter((u) => !isOnVacation(u, day));
     const byName = (a: { fullName: string }, b: { fullName: string }) => a.fullName.localeCompare(b.fullName);
     const nameOf = (id?: string) => (id ? names.get(id) : undefined);

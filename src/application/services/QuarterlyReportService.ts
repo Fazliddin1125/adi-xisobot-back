@@ -80,7 +80,7 @@ export class QuarterlyReportService {
       throw AppError.conflict('Bu hisobot hozir tayyorlanmoqda, biroz kuting');
     }
 
-    const staff = await this.users.findAll({ departmentId });
+    const staff = await this.users.findAll({ departmentId, includeInactive: true });
     const { sources, months, tasks } = await this.collect(staff, year, quarter);
     if (!sources.length) {
       throw AppError.badRequest(`Bu chorakda "${department.name}" xodimlari hech qanday ish yoki topshiriq qayd etmagan`);

@@ -1,5 +1,5 @@
 import { Schema, Types, model, type InferSchemaType } from 'mongoose';
-import { ROLES } from '../../../domain/entities/User.js';
+import { ROLES, USER_STATUSES } from '../../../domain/entities/User.js';
 
 const userSchema = new Schema(
   {
@@ -8,6 +8,7 @@ const userSchema = new Schema(
     passwordHash: { type: String, required: true },
     tokenVersion: { type: Number, default: 0 },
     role: { type: String, enum: ROLES, default: 'xodim', required: true },
+    status: { type: String, enum: USER_STATUSES, default: 'active' },
     departmentId: { type: Types.ObjectId, ref: 'Department', default: null },
     telegramId: { type: String, default: null, trim: true },
     vacationFrom: { type: String, default: null },

@@ -1,6 +1,7 @@
 import type { Task } from '../../domain/entities/Task.js';
 import type { UserRepository } from '../../domain/repositories/UserRepository.js';
 import { AppError } from '../../domain/errors/AppError.js';
+import { isActive } from '../../domain/entities/User.js';
 import { dayKey } from '../../shared/time.js';
 import type { MessageSender } from '../ports/MessageSender.js';
 
@@ -19,6 +20,7 @@ export class NotificationService {
    * Xatolik topshiriq saqlanishiga ta'sir qilmaydi — faqat logga yoziladi.
    */
   async taskAssigned(task: Task, recipientIds: string[]): Promise<void> {
+    // Pauzadagi/o'chirilganlarga xabar yuborilmaydi (ijrochi sifatida ham tanlab bo'lmaydi)
     if (!this.sender.enabled) return;
     const ids = recipientIds.filter((id) => id !== task.creatorId);
     if (!ids.length) return;
@@ -38,7 +40,7 @@ export class NotificationService {
 
     await Promise.all(
       recipients
-        .filter((u) => u.telegramId)
+        .filter((u) => u.telegramId && isActive(u))
         .map((u) =>
           this.sender.send(u.telegramId!, html).catch((err) => {
             console.error(`Telegram xabari yuborilmadi (${u.username}):`, (err as Error).message);
@@ -69,7 +71,7 @@ export class NotificationService {
 
     await Promise.all(
       recipients
-        .filter((u) => u.telegramId)
+        .filter((u) => u.telegramId && isActive(u))
         .map((u) =>
           this.sender.send(u.telegramId!, html).catch((err) => {
             console.error(`Telegram xabari yuborilmadi (${u.username}):`, (err as Error).message);

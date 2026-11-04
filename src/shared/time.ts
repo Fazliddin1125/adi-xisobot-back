@@ -6,7 +6,7 @@ export const TIMEZONE = 'Asia/Tashkent';
 const OFFSET_MS = 5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export type Period = 'today' | 'week' | 'month';
+export type Period = 'today' | 'yesterday' | 'week' | 'month';
 
 export interface DateRange {
   from: Date;
@@ -59,11 +59,19 @@ export function resolveRange(period?: Period, month?: string, now = new Date()):
   switch (period) {
     case 'today':
       return dayRange(now);
+    case 'yesterday':
+      return dayRange(new Date(startOfDay(now).getTime() - DAY_MS / 2));
     case 'week':
       return weekRange(now);
     default:
       return parseMonth(currentMonthKey(now));
   }
+}
+
+/** So'rovdagi davr: aniq kun ("YYYY-MM-DD") > oy ("YYYY-MM") > period */
+export function rangeOf(q: { period?: Period; month?: string; date?: string }, now = new Date()): DateRange {
+  if (q.date) return dayRange(new Date(`${q.date}T12:00:00+05:00`));
+  return resolveRange(q.period, q.month, now);
 }
 
 export function isSameDay(a: Date, b: Date): boolean {

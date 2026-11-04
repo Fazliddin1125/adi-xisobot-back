@@ -49,6 +49,13 @@ export const updateUserSchema = z.object({
 
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Sana formati YYYY-MM-DD bo\'lishi kerak');
 /** null — ta'tilni tugatish */
+export const remindSchema = z.object({
+  onlyIdle: z.boolean().default(false),
+  /** eslatma / qattiq — sarlavha turi; matn — yuboriladigan matn (shablondan yoki qo'lda yozilgan) */
+  kind: z.enum(['eslatma', 'qattiq', 'xabar']).default('eslatma'),
+  text: z.string().trim().min(3, 'Matnni yozing').max(1500, 'Matn juda uzun').optional(),
+});
+export const userStatusSchema = z.object({ status: z.enum(['active', 'paused']) });
 export const vacationSchema = z.object({ vacation: z.object({ from: day, to: day }).nullable() });
 
 export const departmentSchema = z.object({ name: z.string().trim().min(2, 'Bo\'lim nomi kamida 2 belgi').max(120) });
@@ -60,6 +67,8 @@ export const settingsSchema = z.object({
   reportGenerationEnabled: z.boolean().optional(),
   dailyReportEnabled: z.boolean().optional(),
   penaltiesEnabled: z.boolean().optional(),
+  reminderText: z.string().trim().min(10, 'Eslatma matni juda qisqa').max(1500, 'Eslatma matni juda uzun').optional(),
+  strictReminderText: z.string().trim().min(10, 'Qattiq eslatma matni juda qisqa').max(1500, 'Qattiq eslatma matni juda uzun').optional(),
 });
 
 export const createAppealSchema = z.object({
@@ -86,7 +95,11 @@ export const updateAppealSchema = z.object({
 });
 
 export const periodQuerySchema = z.object({
-  period: z.enum(['today', 'week', 'month']).optional(),
+  period: z.enum(['today', 'yesterday', 'week', 'month']).optional(),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Sana formati YYYY-MM-DD bo\'lishi kerak')
+    .optional(),
   month: z
     .string()
     .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Oy formati YYYY-MM bo\'lishi kerak')

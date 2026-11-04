@@ -1,5 +1,5 @@
 import { AppError } from '../../domain/errors/AppError.js';
-import { toPublicUser, type PublicUser, type Role } from '../../domain/entities/User.js';
+import { toPublicUser, type PublicUser, type Role, type UserStatus } from '../../domain/entities/User.js';
 import type { NewUser, UserRepository } from '../../domain/repositories/UserRepository.js';
 import type { AppealRepository } from '../../domain/repositories/AppealRepository.js';
 import type { DepartmentRepository } from '../../domain/repositories/DepartmentRepository.js';
@@ -27,7 +27,8 @@ export class UserService {
   ) {}
 
   async list(): Promise<PublicUser[]> {
-    return (await this.users.findAll()).map(toPublicUser);
+    // Pauzadagilar ham (qayta faollashtirish uchun); o'chirilganlar — yo'q
+    return (await this.users.findAll({ includeInactive: true })).filter((u) => u.status !== 'deleted').map(toPublicUser);
   }
 
   async get(id: string): Promise<PublicUser> {
@@ -90,14 +91,48 @@ export class UserService {
     return toPublicUser(updated);
   }
 
-  async delete(actorId: string, id: string): Promise<void> {
+  /**
+   * Ishi/topshirig'i yo'q bo'lsa — butunlay o'chiriladi. Bor bo'lsa — "o'chirilgan" holatiga o'tadi:
+   * kira olmaydi, hech qayerda ko'rinmaydi, lekin yozgan ishlari tarixda ismi bilan qoladi.
+   * Login va Telegram ID bo'shatiladi (yangi xodimga berish mumkin).
+   */
+  async delete(actorId: string, id: string): Promise<{ kept: boolean }> {
     if (id === actorId) throw AppError.badRequest('O\'zingizni o\'chira olmaysiz');
     const user = await this.users.findById(id);
-    if (!user) throw AppError.notFound('Xodim topilmadi');
-    if ((await this.appeals.countByStaff(id)) > 0 || (await this.tasks.countByUser(id)) > 0) {
-      throw AppError.conflict('Bu xodimda murojaat yoki topshiriqlar bor, tarix saqlanishi uchun o\'chirib bo\'lmaydi');
+    if (!user || user.status === 'deleted') throw AppError.notFound('Xodim topilmadi');
+    await this.assertNotLastSuperadmin(user);
+    if ((await this.appeals.countByStaff(id)) === 0 && (await this.tasks.countByUser(id)) === 0) {
+      await this.users.delete(id);
+      return { kept: false };
     }
-    await this.users.delete(id);
+    await this.users.update(id, {
+      status: 'deleted',
+      username: `${user.username}~${id.slice(-6)}`,
+      telegramId: null,
+      vacationFrom: null,
+      vacationTo: null,
+    });
+    // Ochiq sessiyalarni ham yopamiz
+    await this.users.setPassword(id, user.passwordHash);
+    return { kept: true };
+  }
+
+  /** Superadmin: pauza (vaqtincha to'xtatish) yoki qayta faollashtirish */
+  async setStatus(actorId: string, id: string, status: Exclude<UserStatus, 'deleted'>): Promise<PublicUser> {
+    if (id === actorId) throw AppError.badRequest('O\'zingizni to\'xtata olmaysiz');
+    const user = await this.users.findById(id);
+    if (!user || user.status === 'deleted') throw AppError.notFound('Xodim topilmadi');
+    if (status === 'paused') await this.assertNotLastSuperadmin(user);
+    const updated = await this.users.update(id, { status });
+    // Pauzaga olinganda ochiq sessiyalar yopiladi
+    if (status === 'paused') await this.users.setPassword(id, user.passwordHash);
+    return toPublicUser(updated!);
+  }
+
+  private async assertNotLastSuperadmin(user: { role: Role }) {
+    if (user.role === 'superadmin' && (await this.users.findAll()).filter((u) => u.role === 'superadmin').length <= 1) {
+      throw AppError.badRequest('Tizimda kamida bitta faol superadmin qolishi kerak');
+    }
   }
 
   /** Bazada superadmin bo'lmasa, .env dagi ma'lumotlar bilan yaratadi */

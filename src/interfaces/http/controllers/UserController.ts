@@ -3,7 +3,7 @@ import type { UserService } from '../../../application/services/UserService.js';
 import type { NotificationService } from '../../../application/services/NotificationService.js';
 import { actorOf } from '../middlewares/auth.js';
 import { body, params } from '../middlewares/validate.js';
-import { createUserSchema, idParamSchema, updateUserSchema, vacationSchema } from '../validators/schemas.js';
+import { createUserSchema, idParamSchema, updateUserSchema, userStatusSchema, vacationSchema } from '../validators/schemas.js';
 
 export class UserController {
   constructor(
@@ -39,7 +39,11 @@ export class UserController {
   };
 
   remove = async (req: Request, res: Response) => {
-    await this.users.delete(actorOf(req).id, params(req, idParamSchema).id);
-    res.status(204).end();
+    res.json(await this.users.delete(actorOf(req).id, params(req, idParamSchema).id));
+  };
+
+  setStatus = async (req: Request, res: Response) => {
+    const { id } = params(req, idParamSchema);
+    res.json(await this.users.setStatus(actorOf(req).id, id, body(req, userStatusSchema).status));
   };
 }

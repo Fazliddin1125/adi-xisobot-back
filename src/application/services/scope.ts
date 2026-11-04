@@ -14,6 +14,6 @@ export interface ScopeQuery {
 export async function resolveStaffScope(actor: Actor, query: ScopeQuery, users: UserRepository): Promise<string[] | undefined> {
   if (!can.viewAll(actor.role)) return [actor.id];
   if (query.staffId) return [query.staffId];
-  if (query.departmentId) return (await users.findAll({ departmentId: query.departmentId })).map((u) => u.id);
+  if (query.departmentId) return (await users.findAll({ departmentId: query.departmentId, includeInactive: true })).map((u) => u.id);
   return undefined;
 }

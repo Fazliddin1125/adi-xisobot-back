@@ -10,7 +10,7 @@ import {
   type TaskVisibility,
 } from '../../domain/entities/Task.js';
 import { can } from '../../domain/policies.js';
-import { isOnVacation } from '../../domain/entities/User.js';
+import { isActive, isOnVacation } from '../../domain/entities/User.js';
 import { dayKey } from '../../shared/time.js';
 import type { TaskRepository } from '../../domain/repositories/TaskRepository.js';
 import type { UserRepository } from '../../domain/repositories/UserRepository.js';
@@ -112,7 +112,7 @@ export class TaskService {
   async update(actor: Actor, id: string, changes: TaskChanges): Promise<TaskView> {
     const task = await this.getVisible(actor, id);
     if (!this.canManage(actor, task)) throw AppError.forbidden('Bu topshiriqni o\'zgartira olmaysiz');
-    if (changes.assigneeIds) await this.assertAssignees(actor, changes.assigneeIds);
+    if (changes.assigneeIds) await this.assertAssignees(actor, changes.assigneeIds, task.assigneeIds);
     if (changes.assigneeIds?.length === 0) changes.visibility = 'public';
     const updated = await this.tasks.update(id, changes);
     // Faqat yangi qo'shilgan ijrochilarga xabar
@@ -216,10 +216,13 @@ export class TaskService {
   }
 
   /** Ijrochilar mavjudligini tekshiradi. Rahbarlar istalgan bo'lim xodimiga topshiriq bera oladi */
-  private async assertAssignees(_actor: Actor, assigneeIds: string[]) {
+  /** existing — oldin biriktirilganlar: ular keyinchalik pauzaga olingan bo'lsa ham tahrirlashga xalaqit bermaydi */
+  private async assertAssignees(_actor: Actor, assigneeIds: string[], existing: string[] = []) {
     const unique = [...new Set(assigneeIds)];
     const users = await this.users.findByIds(unique);
     if (users.length !== unique.length) throw AppError.badRequest('Ijrochilardan biri topilmadi');
+    const inactive = users.find((u) => !isActive(u) && !existing.includes(u.id));
+    if (inactive) throw AppError.badRequest(`${inactive.fullName} faol emas (pauzada yoki o'chirilgan) — topshiriq berib bo'lmaydi`);
   }
 
   private async getVisible(actor: Actor, id: string): Promise<Task> {

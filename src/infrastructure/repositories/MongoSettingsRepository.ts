@@ -13,6 +13,8 @@ export class MongoSettingsRepository implements SettingsRepository {
       reportGenerationEnabled: doc.reportGenerationEnabled ?? DEFAULT_SETTINGS.reportGenerationEnabled,
       dailyReportEnabled: doc.dailyReportEnabled ?? DEFAULT_SETTINGS.dailyReportEnabled,
       penaltiesEnabled: doc.penaltiesEnabled ?? DEFAULT_SETTINGS.penaltiesEnabled,
+      reminderText: doc.reminderText || DEFAULT_SETTINGS.reminderText,
+      strictReminderText: doc.strictReminderText || DEFAULT_SETTINGS.strictReminderText,
     };
   }
 

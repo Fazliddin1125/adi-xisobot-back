@@ -3,6 +3,9 @@ import type { Role, User } from '../../domain/entities/User.js';
 import type { NewUser, UserRepository } from '../../domain/repositories/UserRepository.js';
 import { UserModel, type UserDoc } from '../db/models/UserModel.js';
 
+/** Eski yozuvlarda status yo'q — ular faol */
+const ACTIVE = { status: { $nin: ['paused', 'deleted'] as string[] } } as Record<string, unknown>;
+
 function toEntity(doc: UserDoc): User {
   return {
     id: String(doc._id),
@@ -11,6 +14,7 @@ function toEntity(doc: UserDoc): User {
     passwordHash: doc.passwordHash,
     tokenVersion: doc.tokenVersion ?? 0,
     role: doc.role,
+    status: doc.status ?? 'active',
     departmentId: doc.departmentId ? String(doc.departmentId) : undefined,
     telegramId: doc.telegramId ?? undefined,
     vacationFrom: doc.vacationFrom ?? undefined,
@@ -42,12 +46,15 @@ export class MongoUserRepository implements UserRepository {
   }
 
   async findByTelegramId(telegramId: string): Promise<User | null> {
-    const doc = await UserModel.findOne({ telegramId }).lean();
+    const doc = await UserModel.findOne({ telegramId, ...ACTIVE }).lean();
     return doc ? toEntity(doc) : null;
   }
 
-  async findAll(filter: { departmentId?: string } = {}): Promise<User[]> {
-    const query = filter.departmentId ? { departmentId: filter.departmentId } : {};
+  async findAll(filter: { departmentId?: string; includeInactive?: boolean } = {}): Promise<User[]> {
+    const query: Record<string, unknown> = {
+      ...(filter.departmentId ? { departmentId: filter.departmentId } : {}),
+      ...(filter.includeInactive ? {} : ACTIVE),
+    };
     const docs = await UserModel.find(query).sort({ fullName: 1 }).lean();
     return docs.map(toEntity);
   }

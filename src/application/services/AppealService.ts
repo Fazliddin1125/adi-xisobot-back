@@ -4,7 +4,7 @@ import { can } from '../../domain/policies.js';
 import type { AppealRepository } from '../../domain/repositories/AppealRepository.js';
 import type { UserRepository } from '../../domain/repositories/UserRepository.js';
 import type { SettingsRepository } from '../../domain/repositories/SettingsRepository.js';
-import { isSameDay, resolveRange, type Period } from '../../shared/time.js';
+import { isSameDay, rangeOf, type Period } from '../../shared/time.js';
 import type { Actor } from '../Actor.js';
 import { resolveStaffScope, type ScopeQuery } from './scope.js';
 
@@ -12,6 +12,7 @@ export type AppealView = Appeal & { staffName: string; editable: boolean };
 
 export interface AppealListQuery extends ScopeQuery {
   period?: Period;
+  date?: string;
   month?: string;
 }
 
@@ -40,7 +41,7 @@ export class AppealService {
   /** Xodim faqat o'zinikini ko'radi; rahbarlar istalgan xodim/bo'lim yoki hammasini */
   async list(actor: Actor, query: AppealListQuery): Promise<AppealView[]> {
     const staffIds = await resolveStaffScope(actor, query, this.users);
-    const range = resolveRange(query.period, query.month);
+    const range = rangeOf(query);
     const appeals = await this.appeals.list({ ...range, staffIds });
     return this.withViewFields(actor, appeals);
   }
@@ -80,7 +81,7 @@ export class AppealService {
   }
 
   private async withViewFields(actor: Actor, appeals: Appeal[]): Promise<AppealView[]> {
-    const names = new Map((await this.users.findAll()).map((u) => [u.id, u.fullName]));
+    const names = new Map((await this.users.findAll({ includeInactive: true })).map((u) => [u.id, u.fullName]));
     const now = new Date();
     return appeals.map((a) => ({
       ...a,

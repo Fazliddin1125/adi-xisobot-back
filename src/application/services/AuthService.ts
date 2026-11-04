@@ -1,5 +1,5 @@
 import { AppError } from '../../domain/errors/AppError.js';
-import { toPublicUser, type PublicUser } from '../../domain/entities/User.js';
+import { isActive, toPublicUser, type PublicUser } from '../../domain/entities/User.js';
 import type { UserRepository } from '../../domain/repositories/UserRepository.js';
 import type { LoginThrottle } from '../ports/LoginThrottle.js';
 import type { PasswordHasher } from '../ports/PasswordHasher.js';
@@ -33,6 +33,7 @@ export class AuthService {
       throw AppError.unauthorized('Login yoki parol noto\'g\'ri');
     }
     this.throttle.reset(login);
+    if (!isActive(user)) throw AppError.forbidden(user.status === 'paused' ? 'Hisobingiz vaqtincha to‘xtatilgan. Rahbaringizga murojaat qiling' : 'Login yoki parol noto\'g\'ri');
     return { token: this.tokens.sign({ sub: user.id, role: user.role, ver: user.tokenVersion }), user: toPublicUser(user) };
   }
 

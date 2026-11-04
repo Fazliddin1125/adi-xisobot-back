@@ -1,6 +1,13 @@
 export const ROLES = ['superadmin', 'markaz_boshligi', 'bolim_boshligi', 'xodim'] as const;
 export type Role = (typeof ROLES)[number];
 
+/**
+ * active — ishlayapti; paused — vaqtincha to'xtatilgan (kira olmaydi, ro'yxat/hisobot/botda yo'q, qayta faollashtirsa bo'ladi);
+ * deleted — o'chirilgan, lekin yozgan ishlari va topshiriqlari tarixda ismi bilan qoladi
+ */
+export const USER_STATUSES = ['active', 'paused', 'deleted'] as const;
+export type UserStatus = (typeof USER_STATUSES)[number];
+
 export interface User {
   id: string;
   fullName: string;
@@ -9,6 +16,7 @@ export interface User {
   /** Sessiyalar versiyasi: parol o'zgarganda oshadi va barcha eski tokenlar yaroqsiz bo'ladi */
   tokenVersion: number;
   role: Role;
+  status: UserStatus;
   departmentId?: string;
   /** Telegram chat ID — topshiriq bildirishnomalari uchun */
   telegramId?: string;
@@ -19,6 +27,8 @@ export interface User {
 }
 
 export type PublicUser = Omit<User, 'passwordHash' | 'tokenVersion'>;
+
+export const isActive = (user: Pick<User, 'status'>) => user.status === 'active';
 
 /** Berilgan kunda (Toshkent, "YYYY-MM-DD") ta'tildami */
 export function isOnVacation(user: Pick<User, 'vacationFrom' | 'vacationTo'>, day: string): boolean {

@@ -79,6 +79,7 @@ export function createApp(c: Container, corsOrigin?: string) {
   admin.post('/users', c.userController.create);
   admin.patch('/users/:id', c.userController.update);
   admin.delete('/users/:id', c.userController.remove);
+  admin.put('/users/:id/status', c.userController.setStatus);
   admin.post('/users/:id/telegram-test', c.userController.telegramTest);
   admin.post('/departments', c.departmentController.create);
   admin.patch('/departments/:id', c.departmentController.update);

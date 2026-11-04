@@ -2,12 +2,14 @@ import type { Actor } from '../Actor.js';
 import type { AppealBreakdown, AppealRepository } from '../../domain/repositories/AppealRepository.js';
 import type { UserRepository } from '../../domain/repositories/UserRepository.js';
 import type { DepartmentRepository } from '../../domain/repositories/DepartmentRepository.js';
-import type { Role } from '../../domain/entities/User.js';
-import { dayRange, eachDayKey, resolveRange, weekRange, type DateRange, type Period } from '../../shared/time.js';
+import { isActive, type Role, type UserStatus } from '../../domain/entities/User.js';
+import { dayRange, eachDayKey, rangeOf, resolveRange, weekRange, type DateRange, type Period } from '../../shared/time.js';
 import { resolveStaffScope, type ScopeQuery } from './scope.js';
 
 export interface StatsQuery extends ScopeQuery {
   period?: Period;
+  /** Aniq kun "YYYY-MM-DD" (kalendardan) */
+  date?: string;
   month?: string;
 }
 
@@ -32,6 +34,8 @@ export interface StaffStatsRow extends Counts {
   role: Role;
   departmentId?: string;
   departmentName?: string;
+  /** Pauzadagi/o'chirilgan xodim — faqat shu davrda ishi bo'lsa ko'rinadi */
+  status: UserStatus;
 }
 
 export interface DepartmentStatsRow extends Counts {
@@ -62,7 +66,7 @@ export class StatsService {
   /** Xodim — faqat o'ziniki. Rahbar — tanlangan xodim, bo'lim yoki hammasi. */
   async details(actor: Actor, query: StatsQuery): Promise<StatsResult> {
     const staffIds = await resolveStaffScope(actor, query, this.users);
-    const range = resolveRange(query.period, query.month);
+    const range = rangeOf(query);
     const b = await this.appeals.breakdown({ ...range, staffIds });
     return {
       range,
@@ -78,16 +82,18 @@ export class StatsService {
 
   /** Rahbarlar: xodimlar va bo'limlar kesimida (murojaati yo'qlar ham ko'rinadi) */
   async perStaff(query: StatsQuery): Promise<{ range: DateRange; rows: StaffStatsRow[]; departments: DepartmentStatsRow[] }> {
-    const range = resolveRange(query.period, query.month);
+    const range = rangeOf(query);
     const [users, counts, departments] = await Promise.all([
-      this.users.findAll({ departmentId: query.departmentId }),
+      this.users.findAll({ departmentId: query.departmentId, includeInactive: true }),
       this.appeals.countsPerStaff(range),
       this.departments.findAll(),
     ]);
     const byId = new Map(counts.map((c) => [c.staffId, c]));
     const deptNames = new Map(departments.map((d) => [d.id, d.name]));
 
+    // Faol emaslar (pauza/o'chirilgan) faqat shu davrda ish yozgan bo'lsa — tarix to'g'ri bo'lishi uchun
     const rows: StaffStatsRow[] = users
+      .filter((u) => isActive(u) || byId.has(u.id))
       .map((u) => {
         const c = byId.get(u.id);
         return {
@@ -97,6 +103,7 @@ export class StatsService {
           role: u.role,
           departmentId: u.departmentId,
           departmentName: u.departmentId ? deptNames.get(u.departmentId) : undefined,
+          status: u.status,
           total: c?.total ?? 0,
           offline: c?.offline ?? 0,
           online: c?.online ?? 0,

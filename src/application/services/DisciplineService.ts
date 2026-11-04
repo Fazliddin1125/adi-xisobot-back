@@ -20,8 +20,18 @@ const shortDate = (key: string) => key.split('-').reverse().join('.');
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 /** Bot "write" tugmasini ushlaydi va ish yozishni so'raydi */
 const WRITE_BUTTON = [[{ text: '✍️ Ish yozish', callback_data: 'write' }]];
-/** Jarima eslatmasi matni — har bir eslatmada */
-const PENALTY_NOTE = `00:00 gacha ish yozilmasa, <b>${PENALTY_POINTS} jarima balli</b> beriladi.`;
+export type ReminderKind = 'eslatma' | 'qattiq' | 'xabar';
+const HEADERS: Record<ReminderKind, string> = {
+  eslatma: '📣 <b>Eslatma</b>',
+  qattiq: '🚨 <b>QATTIQ ESLATMA</b>',
+  xabar: '📣 <b>Xabar</b>',
+};
+
+/** Shablon (oddiy matn) → Telegram HTML: {ism} va {ball} o'rniga xodimning to'liq ismi va jarima ballari */
+function fillTemplate(text: string, user: User, total: number): string {
+  // To'liq ism: bazada ismlar turli tartibda yozilgan ("Aliyev Vali", "Alisher Voitov")
+  return escapeHtml(text).replaceAll('{ism}', escapeHtml(user.fullName)).replaceAll('{ball}', String(total));
+}
 
 /** Toshkent devor soati: soat, daqiqa, hafta kuni (0 — yakshanba) */
 function clock(now: Date) {
@@ -73,13 +83,9 @@ export class DisciplineService {
     // Yakshanba ham "bajarildi" deb belgilanadi — jarima bosqichi faqat eslatma bo'lgan kunlar uchun ishlaydi
     if (!(await this.settings.claimJob(REMINDER_JOB, dayKey(now)))) return;
     if (!this.delivery.enabled || clock(now).weekday === 0) return;
-    const html = [
-      '⏰ <b>Bugun hali ish yozmadingiz</b>',
-      '',
-      'Bugun qilgan ishlaringizni <b>soat 00:00 gacha</b> yozing — pastdagi tugmani bosing yoki shu botga oddiy xabar qilib yuboring.',
-      PENALTY_NOTE,
-    ].join('\n');
-    await this.delivery.sendBatch('eslatma', `18:00 eslatma · ${shortDate(dayKey(now))}`, idle, html, { buttons: WRITE_BUTTON });
+    const [{ reminderText }, totals] = await Promise.all([this.settings.get(), this.penalties.totals()]);
+    const message = (u: User) => `⏰ <b>Bugun hali ish yozmadingiz</b>\n\n${fillTemplate(reminderText, u, totals[u.id] ?? 0)}`;
+    await this.delivery.sendBatch('eslatma', `18:00 eslatma · ${shortDate(dayKey(now))}`, idle, message, { buttons: WRITE_BUTTON });
   }
 
   /** Kecha eslatma yuborilgan bo'lsa (ya'ni 18:00 bosqichi ishlagan) — hali ham yozmaganlarga jarima */
@@ -124,38 +130,34 @@ export class DisciplineService {
   }
 
   /**
-   * Rahbar saytdan: "qilgan ishlaringizni botga yozing" eslatmasi.
+   * Rahbar saytdan: eslatma, qattiq eslatma yoki o'zi yozgan xabar.
    * onlyIdle — faqat bugun hali ish yozmaganlarga. Faqat xodimlarga (bo'lim boshliqlariga emas).
-   * Natija: kimga yetib bordi, kimga bormadi (sababi bilan)
+   * text berilmasa — Sozlamalardagi shablon. Natija: kimga yetib bordi, kimga bormadi (sababi bilan)
    */
-  async broadcastReminder(actorId: string, onlyIdle: boolean): Promise<DeliveryLog | null> {
+  async broadcastReminder(actorId: string, onlyIdle: boolean, kind: ReminderKind = 'eslatma', text?: string): Promise<DeliveryLog | null> {
     if (!this.delivery.enabled) throw AppError.badRequest('Telegram bot sozlanmagan (TELEGRAM_BOT_TOKEN yo\'q)');
     const now = new Date();
     const day = dayKey(now);
-    const [users, counts, actor] = await Promise.all([
+    const [users, counts, actor, settings, totals] = await Promise.all([
       this.users.findAll(),
       this.appeals.countsPerStaff(dayRange(now)),
       this.users.findById(actorId),
+      this.settings.get(),
+      this.penalties.totals(),
     ]);
     const wrote = new Set(counts.filter((c) => c.total > 0).map((c) => c.staffId));
     const targets = users.filter(
       (u) => REQUIRED_ROLES.includes(u.role) && u.id !== actorId && !isOnVacation(u, day) && (!onlyIdle || !wrote.has(u.id)),
     );
-    const html = [
-      '📣 <b>Eslatma</b>',
-      '',
-      onlyIdle ? 'Bugun hali ish yozmadingiz. Qilgan ishlaringizni yozib qo‘ying.' : 'Bugun qilgan ishlaringizni yozib borishni unutmang.',
-      'Pastdagi tugmani bosing yoki ishni shu botga oddiy xabar qilib yuboring.',
-      PENALTY_NOTE,
-      actor ? `\n👤 ${escapeHtml(actor.fullName)}` : null,
-    ]
-      .filter((l) => l !== null)
-      .join('\n');
+    const template = text ?? (kind === 'qattiq' ? settings.strictReminderText : settings.reminderText);
+    const signature = actor ? `\n\n👤 ${escapeHtml(actor.fullName)}` : '';
+    const message = (u: User) => `${HEADERS[kind]}\n\n${fillTemplate(template, u, totals[u.id] ?? 0)}${signature}`;
+    const label = { eslatma: 'Eslatma', qattiq: 'Qattiq eslatma', xabar: 'Xabar' }[kind];
     return this.delivery.sendBatch(
       'qolda_eslatma',
-      `Qo‘lda eslatma (${onlyIdle ? 'ish yozmaganlarga' : 'hammaga'}) · ${shortDate(day)}`,
+      `${label} (${onlyIdle ? 'ish yozmaganlarga' : 'hammaga'}) · ${shortDate(day)}`,
       targets,
-      html,
+      message,
       { buttons: WRITE_BUTTON, byName: actor?.fullName },
     );
   }

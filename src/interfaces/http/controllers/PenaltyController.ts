@@ -1,8 +1,8 @@
 import type { Request, Response } from 'express';
 import type { DisciplineService } from '../../../application/services/DisciplineService.js';
 import { actorOf } from '../middlewares/auth.js';
-import { params } from '../middlewares/validate.js';
-import { idParamSchema } from '../validators/schemas.js';
+import { body, params } from '../middlewares/validate.js';
+import { idParamSchema, remindSchema } from '../validators/schemas.js';
 
 export class PenaltyController {
   constructor(private readonly discipline: DisciplineService) {}
@@ -22,8 +22,8 @@ export class PenaltyController {
 
   /** Rahbar: hammaga (yoki faqat bugun yozmaganlarga) "ishlarni botga yozing" eslatmasi */
   remind = async (req: Request, res: Response) => {
-    const onlyIdle = req.body?.onlyIdle === true;
-    res.json(await this.discipline.broadcastReminder(actorOf(req).id, onlyIdle));
+    const { onlyIdle, kind, text } = body(req, remindSchema);
+    res.json(await this.discipline.broadcastReminder(actorOf(req).id, onlyIdle, kind, text));
   };
 
   remove = async (req: Request, res: Response) => {
